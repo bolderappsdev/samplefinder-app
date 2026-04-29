@@ -486,7 +486,7 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
     }
 
     if (code.length === 6) {
-      if (String(code) === String(checkInCode)) {
+      if (String(code).toUpperCase() === String(checkInCode).toUpperCase()) {
         try {
           setIsSubmittingCheckIn(true);
           

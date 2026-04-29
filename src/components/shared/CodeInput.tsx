@@ -123,7 +123,7 @@ const CodeInput = forwardRef<CodeInputRef, CodeInputProps>(({
               onChangeText={(text) => handleChange(text, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
               keyboardType={numericOnly ? 'number-pad' : 'default'}
-              autoCapitalize={numericOnly ? 'none' : 'characters'}
+              autoCapitalize="none"
               autoCorrect={false}
               maxLength={length}
               selectTextOnFocus
