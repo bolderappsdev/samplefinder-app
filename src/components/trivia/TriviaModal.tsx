@@ -53,7 +53,7 @@ export const TriviaModal: React.FC<TriviaModalProps> = ({
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState<number | null>(null);
   const [answerState, setAnswerState] = useState<AnswerState>('idle');
   const [pointsAwarded, setPointsAwarded] = useState<number>(0);
-  const [countdown, setCountdown] = useState<number>(5);
+  const [countdown, setCountdown] = useState<number>(10);
   const [closeEnabledAfterWin, setCloseEnabledAfterWin] = useState(true);
   const [isCapturingShare, setIsCapturingShare] = useState(false);
   const modalRef = useRef<View>(null);
@@ -66,7 +66,7 @@ export const TriviaModal: React.FC<TriviaModalProps> = ({
       setCorrectAnswerIndex(null);
       setAnswerState('idle');
       setPointsAwarded(0);
-      setCountdown(5);
+      setCountdown(10);
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
