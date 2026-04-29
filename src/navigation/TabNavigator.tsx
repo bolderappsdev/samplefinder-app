@@ -5,7 +5,7 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 import { View, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeStack, { HomeStackParamList } from '@/navigation/HomeStack';
-import ProfileStack from '@/navigation/ProfileStack';
+import ProfileStack, { ProfileStackParamList } from '@/navigation/ProfileStack';
 import FavoritesScreen from '@/screens/tabs/favorites/FavoritesScreen';
 import CalendarStack from '@/navigation/CalendarStack';
 import { PromotionsScreen } from '@/screens/tabs/promotions';
@@ -15,7 +15,7 @@ import HeartOutlineIcon from '@/icons/HeartOutlineIcon';
 
 export type TabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
-  Profile: undefined;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
   Favorites: undefined;
   Calendar: undefined;
   Promotions: undefined;
@@ -87,6 +87,12 @@ const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => 
             // Always show map/list root when opening Home (not the last nested screen).
             if (route.name === 'Home') {
               navigation.navigate('Home', { screen: 'HomeMain' });
+              return;
+            }
+
+            // Re-tapping Profile resets to ProfileMain so users aren't stranded on Edit Profile / Notifications.
+            if (route.name === 'Profile') {
+              navigation.navigate('Profile', { screen: 'ProfileMain' });
               return;
             }
 

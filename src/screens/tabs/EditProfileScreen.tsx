@@ -251,13 +251,14 @@ const EditProfileScreen = () => {
 
           <View style={styles.buttonContainer}>
             <CustomButton
-              title={isSaving ? 'Saving...' : 'Save Updates'}
+              title="Save Updates"
               onPress={handleSaveUpdates}
               variant="dark"
               size="medium"
               style={styles.saveButton}
               textStyle={styles.saveButtonText}
-              disabled={isSaving || !hasChanges}
+              loading={isSaving}
+              disabled={!hasChanges}
             />
             <CustomButton
               title="Delete Account"
@@ -271,7 +272,7 @@ const EditProfileScreen = () => {
           </View>
       <View style={styles.appVersionContainer}>
         <Text style={styles.appVersionText}>
-          App version {appVersion}({appBuildNumber})
+          App version {appVersion} ({appBuildNumber})
         </Text>
       </View>
         </ScrollView>
