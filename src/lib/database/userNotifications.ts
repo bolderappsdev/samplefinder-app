@@ -362,7 +362,14 @@ export const getUserNotifications = async (
       deserializeNotifications(notificationsRaw)
     );
 
-    // Return limited number
+    // Newest first by delivery time. Treat unparseable createdAt as oldest so a
+    // malformed entry can't bubble to the top of the list.
+    const tsOrZero = (n: UserNotification) => {
+      const t = n.createdAt ? Date.parse(n.createdAt) : NaN;
+      return Number.isFinite(t) ? t : 0;
+    };
+    notifications.sort((a, b) => tsOrZero(b) - tsOrZero(a));
+
     return notifications.slice(0, limit);
   } catch (error: any) {
     console.error('[notifications] Error fetching notifications:', error);
