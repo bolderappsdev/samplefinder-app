@@ -30,6 +30,8 @@ export const useEditProfileScreen = () => {
   
   const [hasChanges, setHasChanges] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [pendingAvatarLocalUri, setPendingAvatarLocalUri] = useState<string | null>(null);
+  const [pendingAvatarRemoval, setPendingAvatarRemoval] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -71,6 +73,8 @@ export const useEditProfileScreen = () => {
       setPhoneNumber(userProfile.phoneNumber || '');
       setEmail(user.email || '');
       setAvatarUri(userProfile.avatarURL || null);
+      setPendingAvatarLocalUri(null);
+      setPendingAvatarRemoval(false);
       
       console.log('[EditProfileScreen] Profile loaded:', {
         username: userProfile.username,
@@ -175,10 +179,13 @@ export const useEditProfileScreen = () => {
       const hasPhoneChange = phoneNumber !== (profile.phoneNumber || '');
       const hasEmailChange = email !== (authUser.email || '');
       const hasPasswordChange = currentPassword.length > 0 || password.length > 0;
-      
-      setHasChanges(hasUsernameChange || hasPhoneChange || hasEmailChange || hasPasswordChange);
+      const hasAvatarChange = pendingAvatarLocalUri !== null || pendingAvatarRemoval;
+
+      setHasChanges(
+        hasUsernameChange || hasPhoneChange || hasEmailChange || hasPasswordChange || hasAvatarChange
+      );
     }
-  }, [username, phoneNumber, email, currentPassword, password, profile, authUser]);
+  }, [username, phoneNumber, email, currentPassword, password, profile, authUser, pendingAvatarLocalUri, pendingAvatarRemoval]);
 
   const handleBackPress = () => {
     if (hasChanges) {
@@ -386,6 +393,38 @@ export const useEditProfileScreen = () => {
         setPassword('');
       }
 
+      // Persist avatar changes only after the rest of the save succeeds
+      if (pendingAvatarLocalUri || pendingAvatarRemoval) {
+        try {
+          setIsUploadingAvatar(true);
+
+          if (profile.avatarURL) {
+            const oldFileId = extractFileIdFromUrl(profile.avatarURL);
+            if (oldFileId) {
+              try {
+                await deleteAvatar(oldFileId);
+              } catch (deleteError) {
+                console.warn('[EditProfileScreen] Failed to delete old avatar:', deleteError);
+              }
+            }
+          }
+
+          if (pendingAvatarLocalUri) {
+            const avatarUrl = await uploadAvatar(pendingAvatarLocalUri, user.$id);
+            await updateUserProfile(profile.$id, { avatarURL: avatarUrl });
+            setAvatarUri(avatarUrl);
+          } else {
+            await updateUserProfile(profile.$id, { avatarURL: null });
+            setAvatarUri(null);
+          }
+
+          setPendingAvatarLocalUri(null);
+          setPendingAvatarRemoval(false);
+        } finally {
+          setIsUploadingAvatar(false);
+        }
+      }
+
       // Show custom success modal instead of generic Alert
       setShowSuccessModal(true);
     } catch (err: any) {
@@ -517,7 +556,9 @@ export const useEditProfileScreen = () => {
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const imageUri = result.assets[0].uri;
-        await handleUploadAvatar(imageUri);
+        setAvatarUri(imageUri);
+        setPendingAvatarLocalUri(imageUri);
+        setPendingAvatarRemoval(false);
       }
     } catch (error: any) {
       console.error('[EditProfileScreen] Error picking image:', error);
@@ -525,92 +566,23 @@ export const useEditProfileScreen = () => {
     }
   };
 
-  const handleUploadAvatar = async (imageUri: string) => {
-    if (!profile || !authUser) {
-      Alert.alert('Error', 'Profile not loaded. Please try again.');
-      return;
-    }
-
-    try {
-      setIsUploadingAvatar(true);
-      setError('');
-
-      const user = useAuthStore.getState().user;
-      if (!user) {
-        throw new Error('Not authenticated. Please log in again.');
-      }
-
-      // Delete old avatar if exists
-      if (profile.avatarURL) {
-        const oldFileId = extractFileIdFromUrl(profile.avatarURL);
-        if (oldFileId) {
-          try {
-            await deleteAvatar(oldFileId);
-          } catch (deleteError) {
-            console.warn('[EditProfileScreen] Failed to delete old avatar:', deleteError);
-            // Continue even if deletion fails
-          }
-        }
-      }
-
-      // Upload new avatar
-      const avatarUrl = await uploadAvatar(imageUri, user.$id);
-
-      // Update profile with new avatar URL
-      await updateUserProfile(profile.$id, { avatarURL: avatarUrl });
-
-      // Update local state
-      setAvatarUri(avatarUrl);
-      
-      // Reload profile to get updated data
-      await loadProfile();
-    } catch (err: any) {
-      console.error('[EditProfileScreen] Error uploading avatar:', err);
-      const errorMessage = err?.message || 'Failed to upload profile picture. Please try again.';
-      setError(errorMessage);
-      Alert.alert('Upload Failed', errorMessage);
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  };
-
-  const handleRemovePhoto = async () => {
+  const handleRemovePhoto = () => {
     if (!profile) {
       return;
     }
 
     Alert.alert(
       'Remove Photo',
-      'Are you sure you want to remove your profile picture?',
+      'Are you sure you want to remove your profile picture? Your changes will be applied when you tap Save Updates.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsUploadingAvatar(true);
-
-              // Delete from storage if exists
-              if (profile.avatarURL) {
-                const fileId = extractFileIdFromUrl(profile.avatarURL);
-                if (fileId) {
-                  await deleteAvatar(fileId);
-                }
-              }
-
-              // Update profile to remove avatar URL
-              await updateUserProfile(profile.$id, { avatarURL: null });
-              setAvatarUri(null);
-
-              // Reload profile
-              await loadProfile();
-            } catch (err: any) {
-              console.error('[EditProfileScreen] Error removing avatar:', err);
-              Alert.alert('Error', 'Failed to remove profile picture. Please try again.');
-            } finally {
-              setIsUploadingAvatar(false);
-            }
+          onPress: () => {
+            setAvatarUri(null);
+            setPendingAvatarLocalUri(null);
+            setPendingAvatarRemoval(true);
           },
         },
       ]

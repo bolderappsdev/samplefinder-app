@@ -9,6 +9,7 @@ interface FavoritesState {
   isFavorite: (brandId: string) => boolean;
   toggleFavorite: (brandId: string) => void;
   setFavorites: (brandIds: string[]) => void; // Sync from database
+  clear: () => void; // Reset on logout/account switch
 }
 
 export const useFavoritesStore = create<FavoritesState>()(
@@ -49,6 +50,10 @@ export const useFavoritesStore = create<FavoritesState>()(
       
       setFavorites: (brandIds) => {
         set({ favoriteIds: brandIds });
+      },
+
+      clear: () => {
+        set({ favoriteIds: [] });
       },
     }),
     {

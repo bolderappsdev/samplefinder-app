@@ -347,7 +347,15 @@ export const logout = async (): Promise<void> => {
       console.warn('[auth.logout] Failed to delete push target:', error);
       // Don't throw - continue with logout even if push target deletion fails
     });
-    
+
+    // Clear cached per-user state so the next account on this device starts clean.
+    try {
+      const { useFavoritesStore } = await import('@/stores/favoritesStore');
+      useFavoritesStore.getState().clear();
+    } catch (error) {
+      console.warn('[auth.logout] Failed to clear favorites store:', error);
+    }
+
     await account.deleteSession('current');
   } catch (error: any) {
     throw new Error(error.message || 'Logout failed');
@@ -937,7 +945,15 @@ export const deleteAccount = async (): Promise<void> => {
       // This is expected to fail with "missing scopes" since the user no longer exists
       console.log('[auth.deleteAccount] Session cleanup skipped (account already deleted)');
     }
-    
+
+    // Clear cached per-user state so a different account on this device starts clean.
+    try {
+      const { useFavoritesStore } = await import('@/stores/favoritesStore');
+      useFavoritesStore.getState().clear();
+    } catch (error) {
+      console.warn('[auth.deleteAccount] Failed to clear favorites store:', error);
+    }
+
     console.log('[auth.deleteAccount] Account deletion completed successfully');
   } catch (error: any) {
     console.error('[auth.deleteAccount] Error deleting account:', error);

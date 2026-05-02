@@ -40,8 +40,9 @@ const CheckInSuccess: React.FC<CheckInSuccessProps> = ({
     height: windowHeight * 0.55,
   };
 
-  // Only show discount section if there's a discount or discount image
-  const hasDiscount = discount != null || discountImageURL;
+  const hasDiscountText = discount != null && discount.trim() !== '';
+  const hasDiscountImage = Boolean(discountImageURL && discountImageURL.trim() !== '');
+  const hasDiscount = hasDiscountText || hasDiscountImage;
 
   return (
     <View style={styles.container}>
@@ -49,12 +50,12 @@ const CheckInSuccess: React.FC<CheckInSuccessProps> = ({
       {hasDiscount && (
         <View style={styles.barcodeSection}>
           <View style={styles.barcodeRow}>
-            {discount && (
+            {hasDiscountText && (
               <Text style={styles.barcodeText}>
                 {discount}
               </Text>
             )}
-            {discountImageURL ? (
+            {hasDiscountImage && (
               <TouchableOpacity
                 style={styles.barcodeContainer}
                 onPress={() => setBarcodeFullscreenVisible(true)}
@@ -63,35 +64,17 @@ const CheckInSuccess: React.FC<CheckInSuccessProps> = ({
                 accessibilityLabel="View barcode full screen"
               >
                 <Image
-                  source={{ uri: discountImageURL }}
+                  source={{ uri: discountImageURL as string }}
                   style={styles.discountImage}
                   resizeMode="contain"
                 />
               </TouchableOpacity>
-            ) : (
-              <View style={styles.barcodeContainer}>
-                {/* Fallback barcode representation */}
-                <View style={styles.barcode}>
-                  {Array.from({ length: 40 }).map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.barcodeLine,
-                        {
-                          width: i % 4 === 0 ? 2.5 : i % 3 === 0 ? 1.5 : 1,
-                          height: 50,
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
-              </View>
             )}
           </View>
         </View>
       )}
 
-      {discountImageURL ? (
+      {hasDiscountImage ? (
         <Modal
           visible={barcodeFullscreenVisible}
           animationType="fade"
@@ -122,7 +105,7 @@ const CheckInSuccess: React.FC<CheckInSuccessProps> = ({
                 style={styles.barcodeModalImageLayer}
               >
                 <Image
-                  source={{ uri: discountImageURL }}
+                  source={{ uri: discountImageURL as string }}
                   style={fullscreenBarcodeSize}
                   resizeMode="contain"
                 />
@@ -189,23 +172,6 @@ const styles = StyleSheet.create({
   barcodeContainer: {
     alignItems: 'center',
     flexShrink: 0,
-  },
-  barcode: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: 1.5,
-    marginBottom: 4,
-    backgroundColor: Colors.white,
-  },
-  barcodeLine: {
-    backgroundColor: Colors.black,
-  },
-  barcodeNumber: {
-    fontSize: 10,
-    fontFamily: 'Quicksand_500Medium',
-    color: Colors.black,
-    letterSpacing: 1,
   },
   discountImage: {
     width: 168,

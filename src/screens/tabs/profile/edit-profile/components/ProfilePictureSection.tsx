@@ -7,6 +7,7 @@ interface ProfilePictureSectionProps {
   username: string;
   avatarUri: string | null;
   isUploadingAvatar: boolean;
+  disabled?: boolean;
   onChangePicture: () => void;
 }
 
@@ -14,13 +15,15 @@ export const ProfilePictureSection: React.FC<ProfilePictureSectionProps> = ({
   username,
   avatarUri,
   isUploadingAvatar,
+  disabled = false,
   onChangePicture,
 }) => {
+  const isInteractionDisabled = isUploadingAvatar || disabled;
   return (
     <View style={styles.profileSection}>
       <TouchableOpacity
         onPress={onChangePicture}
-        disabled={isUploadingAvatar}
+        disabled={isInteractionDisabled}
         style={styles.avatarContainer}
       >
         <View style={styles.avatarBorder}>
@@ -41,9 +44,9 @@ export const ProfilePictureSection: React.FC<ProfilePictureSectionProps> = ({
         </View>
       </TouchableOpacity>
       <Text style={styles.username}>{username || 'User'}</Text>
-      <TouchableOpacity onPress={onChangePicture} disabled={isUploadingAvatar}>
+      <TouchableOpacity onPress={onChangePicture} disabled={isInteractionDisabled}>
         <Text style={styles.changePictureText}>
-          {isUploadingAvatar ? 'Uploading...' : avatarUri ? 'Add / Change Profile Picture' : 'Add / Change Profile Picture'}
+          {isUploadingAvatar ? 'Uploading...' : 'Add / Change Profile Picture'}
         </Text>
       </TouchableOpacity>
     </View>

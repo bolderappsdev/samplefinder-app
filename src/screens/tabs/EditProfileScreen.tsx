@@ -182,6 +182,7 @@ const EditProfileScreen = () => {
             username={username}
             avatarUri={avatarUri}
             isUploadingAvatar={isUploadingAvatar}
+            disabled={isSaving}
             onChangePicture={handleChangeProfilePicture}
           />
 

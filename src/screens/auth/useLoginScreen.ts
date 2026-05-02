@@ -5,6 +5,8 @@ import { RootStackParamList } from '@/navigation/AppNavigator';
 import { login } from '@/lib/auth';
 import { initializePushNotifications } from '@/lib/notifications';
 import { useAuthStore } from '@/stores/authStore';
+import { useFavoritesStore } from '@/stores/favoritesStore';
+import { getUserProfile } from '@/lib/database';
 import { getRememberedEmail, saveRememberedEmail, clearRememberedEmail } from '@/lib/rememberedLogin';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -139,7 +141,20 @@ export const useLoginScreen = () => {
       }
 
       // Sync Zustand with the new Appwrite session (logout/login does not run AppNavigator's initial fetchUser)
-      await useAuthStore.getState().fetchUser();
+      const authedUser = await useAuthStore.getState().fetchUser();
+
+      // Hydrate favorites for this account so brand/event details show the correct
+      // favorite state immediately — without waiting for the user to open the
+      // Favourites tab.
+      if (authedUser) {
+        try {
+          const profile = await getUserProfile(authedUser.$id);
+          useFavoritesStore.getState().setFavorites(profile?.favoriteIds ?? []);
+        } catch (favoritesError) {
+          console.warn('[LoginScreen] Failed to hydrate favorites store:', favoritesError);
+          useFavoritesStore.getState().clear();
+        }
+      }
 
       // Check if email is already verified
       if (user.emailVerification) {
