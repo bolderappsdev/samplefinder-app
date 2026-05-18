@@ -100,8 +100,9 @@ export const useSignUpScreen = () => {
   };
 
   const validatePhoneNumber = (value: string): string | undefined => {
+    // Phone number is optional to reduce bogus-number signups; validate format only when provided.
     if (!value.trim()) {
-      return 'Phone Number is required';
+      return undefined;
     }
     if (!isValidPhoneNumber(value)) {
       return 'Please enter a valid 10-digit phone number';
@@ -513,11 +514,10 @@ export const useSignUpScreen = () => {
     setErrorMessage('');
   };
 
-  // Check if form is valid (all fields filled and no errors)
-  const isFormValid = 
+  // Phone number is optional; omitted from the required-field check.
+  const isFormValid =
     firstName.trim() !== '' &&
     lastName.trim() !== '' &&
-    phoneNumber.trim() !== '' &&
     zipCode.trim() !== '' &&
     dateOfBirth.trim() !== '' &&
     username.trim() !== '' &&
