@@ -18,6 +18,7 @@ import {
   TierRow,
 } from '@/lib/database';
 import { tablesDB, DATABASE_ID, USER_PROFILES_TABLE_ID } from '@/lib/database/config';
+import { APP_STORE_SHARE_SUFFIX } from '@/constants';
 
 export type TabType = 'inProgress' | 'earned';
 
@@ -28,8 +29,7 @@ interface UsePromotionsScreenOptions {
 
 export const usePromotionsScreen = (options: UsePromotionsScreenOptions = {}) => {
   const { contentRef, shareContentRef } = options;
-  const appDownloadLink = 'https://samplefinder.com';
-  const achievementShareMessage = `Check out my achievements on the SampleFinder app! Start earning your own rewards ${appDownloadLink}.`;
+  const achievementShareMessage = `Check out my achievements on the SampleFinder app! Start earning your own rewards.\n\n${APP_STORE_SHARE_SUFFIX}`;
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<TabType>('inProgress');
   const referFriendBottomSheetRef = useRef<BottomSheet>(null);

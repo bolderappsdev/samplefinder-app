@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Share, Alert } from 'react-native';
 import { captureAndShareView } from '@/utils/captureAndShare';
+import { APP_STORE_SHARE_SUFFIX } from '@/constants';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -324,7 +325,7 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
   const handleShare = async () => {
     if (!brand) return;
     try {
-      const message = `Check out ${brand.brandName} at ${brand.storeName} on ${brand.date} from ${brand.time}`;
+      const message = `Check out ${brand.brandName} at ${brand.storeName} on ${brand.date} from ${brand.time}.\n\n${APP_STORE_SHARE_SUFFIX}`;
       if (shareContentRef?.current) {
         try {
           // Capture full event details content (not just the visible viewport).
@@ -577,7 +578,7 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
     try {
       const badgeName = badgeType === 'events' ? 'Events Badge' : 'Review Badge';
       await Share.share({
-        message: `I just earned the ${badgeNumber} ${badgeName} on SampleFinder! 🎉`,
+        message: `I just earned the ${badgeNumber} ${badgeName} on SampleFinder! 🎉\n\n${APP_STORE_SHARE_SUFFIX}`,
       });
     } catch (error) {
       console.error('Error sharing badge:', error);

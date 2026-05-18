@@ -17,6 +17,7 @@ import BadgeEarnedPopupIcon from '@/icons/BadgeEarnedPopupIcon';
 import { CloseIcon } from '@/components';
 import { captureAndShareView } from '@/utils/captureAndShare';
 import ModalBackdrop from '@/components/shared/ModalBackdrop';
+import { APP_STORE_SHARE_SUFFIX } from '@/constants';
 import radialBg from '@/assets/radial-bg.png';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -68,9 +69,10 @@ const BadgeEarnedModal: React.FC<BadgeEarnedModalProps> = ({
   const handleShare = async () => {
     try {
       const badgeName = getBadgeName();
-      const message = badgeType === 'events' || badgeType === 'reviews'
+      const headline = badgeType === 'events' || badgeType === 'reviews'
         ? `I just earned the ${badgeNumber} ${badgeName} on SampleFinder! 🎉`
         : `I just earned the ${badgeName} on SampleFinder! 🎉`;
+      const message = `${headline}\n\n${APP_STORE_SHARE_SUFFIX}`;
       if (modalRef.current) {
         await captureAndShareView(modalRef, message);
       }

@@ -23,6 +23,7 @@ import { AchievementStartIcon, MediumStarIcon, SmallStarIcon, } from '@/icons';
 import { captureAndShareView } from '@/utils/captureAndShare';
 import { RoundedLogoImage } from '@/components';
 import ModalBackdrop from '@/components/shared/ModalBackdrop';
+import { APP_STORE_SHARE_SUFFIX } from '@/constants';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -205,7 +206,7 @@ export const TriviaModal: React.FC<TriviaModalProps> = ({
 
   const handleShare = async () => {
     try {
-      const message = `I just won trivia and earned ${pointsAwarded} points on SampleFinder! 🎉`;
+      const message = `I just won trivia and earned ${pointsAwarded} points on SampleFinder! 🎉\n\n${APP_STORE_SHARE_SUFFIX}`;
       setIsCapturingShare(true);
       // Wait one frame so close/share controls are hidden before capture.
       await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
