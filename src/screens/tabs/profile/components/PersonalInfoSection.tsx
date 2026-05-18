@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
   },
   infoLabel: {
     fontSize: 17,
@@ -66,6 +66,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Quicksand_500Medium',
     color: Colors.pinBlueBlack,
     flex: 1,
+    flexShrink: 1,
   },
 });
 
