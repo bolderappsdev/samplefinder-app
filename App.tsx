@@ -91,6 +91,10 @@ export default function App() {
   const clearTierCompletion = useTierCompletionStore((s) => s.clearTierCompletion);
 
   const authUser = useAuthStore((s) => s.user);
+  // Track the last-seen userId so we can react to login/logout/switch without
+  // running the sync on every render. Initial value `null` matches the
+  // authStore's initial `user: null` so we don't fire a redundant clear on mount.
+  const calendarEventsSyncedForUserIdRef = useRef<string | null>(null);
 
   // Trivia is only for signed-in users; reset when session ends so it cannot appear on Login.
   useEffect(() => {
@@ -101,6 +105,29 @@ export default function App() {
     triviaShownRef.current = false;
     prevQueueLengthRef.current = 0;
     processedTriviaIdsRef.current.clear();
+  }, [authUser]);
+
+  // Saved calendar events must come from the user's Appwrite profile, not from
+  // AsyncStorage-persisted zustand state. Otherwise events added on Device A are
+  // invisible on Device B (the bug client reported: events added on Android were
+  // missing when the same user logged in on iOS). Sync on every login / user
+  // switch; clear on logout so a different account on the same device never sees
+  // the previous user's saved events.
+  useEffect(() => {
+    const currentUserId = authUser?.$id ?? null;
+    if (calendarEventsSyncedForUserIdRef.current === currentUserId) return;
+    calendarEventsSyncedForUserIdRef.current = currentUserId;
+
+    const calendarStore = useCalendarEventsStore.getState();
+    if (!currentUserId) {
+      calendarStore.clearAllSavedEvents();
+      return;
+    }
+    // Drop stale persisted state from a prior session before pulling source of truth.
+    calendarStore.clearAllSavedEvents();
+    calendarStore.syncWithUserProfile().catch((error) => {
+      console.warn('[App] Failed to sync calendar events on auth change:', error);
+    });
   }, [authUser]);
 
   useEffect(() => {
@@ -143,12 +170,8 @@ export default function App() {
               console.warn('[App] Failed to get user profile:', profileError);
             }
 
-            // Sync calendar events store with user profile
-            try {
-              await useCalendarEventsStore.getState().syncWithUserProfile();
-            } catch (syncError) {
-              console.warn('[App] Failed to sync calendar events:', syncError);
-            }
+            // Calendar events are synced by the authUser useEffect above — no
+            // duplicate call here.
 
             // Cleanup past event reminders (remove notifications for events that have passed)
             // try {

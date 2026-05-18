@@ -639,14 +639,19 @@ export const useHomeScreen = () => {
               : 'Distance unknown';
           };
 
+          // Default list ordering: closest event first so new users see nearby events
+          // before they touch the filters (client request: avoid showing hundreds-of-miles
+          // events on first load). parseDistance returns 999999 for "Distance unknown",
+          // which naturally pushes location-less events (or all events when the device
+          // has no userLocation yet) to the end and falls back to date ordering between
+          // ties — same date-asc behaviour we had before within a single distance band.
           const sortedRows = [...rows].sort((a, b) => {
+            const distA = parseDistance(distanceForRow(a));
+            const distB = parseDistance(distanceForRow(b));
+            if (distA !== distB) return distA - distB;
             const dateA = new Date(a.startTime || a.date).getTime();
             const dateB = new Date(b.startTime || b.date).getTime();
-            const dateDiff = dateA - dateB;
-            if (dateDiff === 0) {
-              return parseDistance(distanceForRow(a)) - parseDistance(distanceForRow(b));
-            }
-            return dateDiff;
+            return dateA - dateB;
           });
 
           return sortedRows.map((event) => {

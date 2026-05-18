@@ -100,8 +100,9 @@ export const useSignUpScreen = () => {
   };
 
   const validatePhoneNumber = (value: string): string | undefined => {
+    // Phone number is optional to reduce bogus-number signups; validate format only when provided.
     if (!value.trim()) {
-      return 'Phone Number is required';
+      return undefined;
     }
     if (!isValidPhoneNumber(value)) {
       return 'Please enter a valid 10-digit phone number';
@@ -156,14 +157,17 @@ export const useSignUpScreen = () => {
     if (!value.trim()) {
       return 'Password is required';
     }
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
     // Password must have at least 1 digit, 1 uppercase, 1 lowercase, and 1 special character
     const hasDigit = /\d/.test(value);
     const hasUpperCase = /[A-Z]/.test(value);
     const hasLowerCase = /[a-z]/.test(value);
     const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value);
-    
+
     if (!hasDigit || !hasUpperCase || !hasLowerCase || !hasSpecialChar) {
-      return 'Password must contain at least 1 digit, 1 uppercase letter, 1 lowercase letter, and 1 special character';
+      return 'Password must be at least 8 characters and contain at least 1 digit, 1 uppercase letter, 1 lowercase letter, and 1 special character';
     }
     
     // Password should not be the same as the username (case-insensitive, trimmed)
@@ -510,11 +514,10 @@ export const useSignUpScreen = () => {
     setErrorMessage('');
   };
 
-  // Check if form is valid (all fields filled and no errors)
-  const isFormValid = 
+  // Phone number is optional; omitted from the required-field check.
+  const isFormValid =
     firstName.trim() !== '' &&
     lastName.trim() !== '' &&
-    phoneNumber.trim() !== '' &&
     zipCode.trim() !== '' &&
     dateOfBirth.trim() !== '' &&
     username.trim() !== '' &&

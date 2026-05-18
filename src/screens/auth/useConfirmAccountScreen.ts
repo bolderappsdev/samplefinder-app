@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { verifyEmail, sendEmailOTP, resendVerificationEmail, logout } from '@/lib/auth';
+import { verifyEmail, sendEmailOTP, resendVerificationEmail, logout, deleteAccountById } from '@/lib/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { initializePushNotifications } from '@/lib/notifications';
 import { createUserNotification } from '@/lib/database';
@@ -25,8 +26,16 @@ export const useConfirmAccountScreen = () => {
   const [error, setError] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [canResend, setCanResend] = useState(false);
+  const [isAbandoning, setIsAbandoning] = useState(false);
   const codeInputRef = useRef<CodeInputRef>(null);
   const welcomeNotificationAttempted = useRef(false);
+  /** Set after a successful verify so the beforeRemove listener does not block onward navigation. */
+  const verificationCompletedRef = useRef(false);
+  /** Set while abandonment is in progress so beforeRemove allows the actual goBack. */
+  const allowLeaveRef = useRef(false);
+  // Seed synchronously from the auth store so an early Back tap (before initializeOTP
+  // finishes) still has the userId needed to delete the unverified account.
+  const userIdRef = useRef(useAuthStore.getState().user?.$id ?? '');
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -78,6 +87,7 @@ export const useConfirmAccountScreen = () => {
         // Set state and cooldown (initial OTP was just sent)
         setEmail(userEmail);
         setUserId(userUserId);
+        userIdRef.current = userUserId;
         setResendTimer(RESEND_COOLDOWN_SECONDS);
         setCanResend(false);
       } catch (error: any) {
@@ -154,6 +164,7 @@ export const useConfirmAccountScreen = () => {
 
       // After successful verification, go straight into the app.
       // Notifications should only be accessed from the Profile section.
+      verificationCompletedRef.current = true;
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' as never }],
@@ -206,12 +217,74 @@ export const useConfirmAccountScreen = () => {
     // Code completion is handled - user can now click verify button
   };
 
+  /**
+   * Delete the just-created (unverified) account and return to Sign Up so the user
+   * can correct mistakes like a wrong email. Without this the email/username/phone
+   * remain "taken" in Appwrite and the user is stranded.
+   */
+  const abandonAndGoBack = useCallback(async () => {
+    if (isAbandoning) return;
+    setIsAbandoning(true);
+    setError('');
+    try {
+      if (userIdRef.current) {
+        try {
+          await deleteAccountById(userIdRef.current);
+        } catch (deleteError: any) {
+          console.warn('[ConfirmAccount] Failed to delete unverified account:', deleteError?.message);
+          // Surface the failure but still let the user leave — staying on this dead-end
+          // screen is worse than an orphan account they can clean up via support.
+          setError(
+            'We could not fully discard the unverified account. You may need to contact support if you cannot sign up again.'
+          );
+        }
+      }
+      allowLeaveRef.current = true;
+      // Pop this OTP frame off the stack instead of navigate('SignUp'), which can leave
+      // ConfirmAccount in history — then tapping back from SignUp returns here instead
+      // of going to Login. goBack() is unambiguous: SignUp is always the previous frame
+      // because we got here via navigation.navigate('ConfirmAccount') from SignUp.
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('SignUp' as never);
+      }
+    } finally {
+      setIsAbandoning(false);
+    }
+  }, [isAbandoning, navigation]);
+
+  const handleBack = useCallback(() => {
+    if (isLoading || isAbandoning) return;
+    Alert.alert(
+      'Go back to sign up?',
+      'Your unverified account will be discarded so you can fix any mistakes (like a wrong email) and sign up again.',
+      [
+        { text: 'Stay here', style: 'cancel' },
+        { text: 'Go back', style: 'destructive', onPress: () => { void abandonAndGoBack(); } },
+      ]
+    );
+  }, [isLoading, isAbandoning, abandonAndGoBack]);
+
+  // Catch hardware back (Android) and swipe-back (iOS) so users can't strand orphan
+  // accounts by gesturing past the screen. Skip when verification already succeeded
+  // (we're navigating to MainTabs) or when we're already doing the cleanup.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (verificationCompletedRef.current || allowLeaveRef.current) return;
+      e.preventDefault();
+      handleBack();
+    });
+    return unsubscribe;
+  }, [navigation, handleBack]);
+
   return {
     code,
     email,
     userId,
     isLoading,
     isResending,
+    isAbandoning,
     resendTimer,
     canResend,
     error,
@@ -220,6 +293,7 @@ export const useConfirmAccountScreen = () => {
     handleCodeComplete,
     handleVerify,
     handleResendCode,
+    handleBack,
   };
 };
 

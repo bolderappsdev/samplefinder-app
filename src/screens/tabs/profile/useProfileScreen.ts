@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { captureAndShareView } from '@/utils/captureAndShare';
 import { getUserProfile, calculateTierStatus, fetchTiers, getUserCurrentTier, UserProfileRow, getUserCheckInsCount, getUserReviewsCount, getUnreadNotificationCount } from '@/lib/database';
 import { formatDateForDisplay } from '@/utils/formatters';
-import { countAchievedBadges } from '@/constants';
+import { countAchievedBadges, APP_STORE_SHARE_SUFFIX } from '@/constants';
 
 interface UseProfileScreenOptions {
   contentRef?: RefObject<View | null>;
@@ -17,8 +17,7 @@ interface UseProfileScreenOptions {
 
 export const useProfileScreen = (options: UseProfileScreenOptions = {}) => {
   const { contentRef, shareContentRef } = options;
-  const appDownloadLink = 'https://samplefinder.com';
-  const profileShareMessage = `Check out my Profile on the SampleFinder app! Make your own profile ${appDownloadLink}.`;
+  const profileShareMessage = `Check out my Profile on the SampleFinder app! Make your own profile.\n\n${APP_STORE_SHARE_SUFFIX}`;
   const navigation = useNavigation();
   const referFriendBottomSheetRef = useRef<BottomSheet>(null);
   const referFriendSuccessBottomSheetRef = useRef<BottomSheet>(null);

@@ -2,6 +2,10 @@ import { StyleSheet } from 'react-native';
 import { AUTH_WHITE_CONTENT_TOP_PADDING } from '@/constants/authLayout';
 
 const styles = StyleSheet.create({
+  headerBackButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
   wrapperContent: {
     paddingVertical: 0,
     paddingHorizontal: 30,

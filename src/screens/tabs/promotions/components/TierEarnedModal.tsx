@@ -18,9 +18,9 @@ import CustomButton from '@/components/shared/CustomButton';
 import { Tier } from './TierItem';
 import { CloseIcon } from '@/components';
 import ModalBackdrop from '@/components/shared/ModalBackdrop';
+import { APP_STORE_SHARE_SUFFIX } from '@/constants';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const appDownloadLink = 'https://samplefinder.com';
 
 interface TierEarnedModalProps {
   visible: boolean;
@@ -78,8 +78,8 @@ const TierEarnedModal: React.FC<TierEarnedModalProps> = ({
         const tierLabel = tier?.name ?? 'a new tier';
         const shareMessage =
           tierNumber === 1
-            ? `I just joined SampleFinder and earned ${points} points! Discover samples near you. ${appDownloadLink}`
-            : `I just reached ${tierLabel} on SampleFinder! Join me in discovering amazing samples. ${appDownloadLink}`;
+            ? `I just joined SampleFinder and earned ${points} points! Discover samples near you.\n\n${APP_STORE_SHARE_SUFFIX}`
+            : `I just reached ${tierLabel} on SampleFinder! Join me in discovering amazing samples.\n\n${APP_STORE_SHARE_SUFFIX}`;
         setIsCapturingShare(true);
         // Wait one frame so close/share are not included in capture.
         await new Promise(resolve => requestAnimationFrame(() => resolve(null)));

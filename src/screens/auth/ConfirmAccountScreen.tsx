@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Monicon } from '@monicon/native';
 import ScreenWrapper from '@/components/wrappers/ScreenWrapper';
 import CustomButton from '@/components/shared/CustomButton';
 import CodeInput from '@/components/shared/CodeInput';
@@ -18,6 +19,7 @@ const ConfirmAccountScreen = () => {
     email,
     isLoading,
     isResending,
+    isAbandoning,
     resendTimer,
     canResend,
     error,
@@ -26,13 +28,31 @@ const ConfirmAccountScreen = () => {
     handleCodeComplete,
     handleVerify,
     handleResendCode,
+    handleBack,
   } = useConfirmAccountScreen();
+
+  const backDisabled = isLoading || isAbandoning;
 
   return (
     <ScreenWrapper
       contentBackgroundColor="#fff"
       contentContainerStyle={styles.wrapperContent}
       expandMainContent
+      headerLeft={
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.headerBackButton}
+          activeOpacity={0.8}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          disabled={backDisabled}
+        >
+          {isAbandoning ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Monicon name="mdi:arrow-left" size={22} color="#FFFFFF" />
+          )}
+        </TouchableOpacity>
+      }
     >
       <StatusBar style="light" />
       <View style={styles.contentContainer}>

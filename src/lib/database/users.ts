@@ -188,31 +188,25 @@ export const createUserProfile = async (profileData: UserProfileData): Promise<v
     let dobISO = profileData.dob;
     console.log('[database.createUserProfile] Original DOB:', dobISO);
     
-    // If the date is in a format like "MM/DD/YYYY" or "YYYY-MM-DD", ensure it's ISO format
+    // DOB is a calendar date, not an instant: anchor it to UTC midnight of the entered
+    // day so admin (UTC-pinned writes) and mobile read back the same wall-clock date.
+    // Using new Date(...).toISOString() on a local-time Date would shift the UTC day
+    // in non-UTC zones (e.g. PDT 1988-08-07 00:00 → 1988-08-07T07:00:00.000Z).
     if (dobISO && !dobISO.includes('T')) {
-      // If it's already in YYYY-MM-DD format, add time component
       if (/^\d{4}-\d{2}-\d{2}$/.test(dobISO)) {
         dobISO = `${dobISO}T00:00:00.000Z`;
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dobISO)) {
+        const [month, day, year] = dobISO.split('/');
+        dobISO = `${year}-${month}-${day}T00:00:00.000Z`;
       } else {
-        // Try to parse other formats (like MM/DD/YYYY)
-        // For MM/DD/YYYY format, we need to parse it correctly
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dobISO)) {
-          const [month, day, year] = dobISO.split('/');
-          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-          if (!isNaN(date.getTime())) {
-            dobISO = date.toISOString();
-          } else {
-            throw new Error(`Invalid date format: ${dobISO}`);
-          }
-        } else {
-          // Try to parse other formats
-          const date = new Date(dobISO);
-          if (!isNaN(date.getTime())) {
-            dobISO = date.toISOString();
-          } else {
-            throw new Error(`Invalid date format: ${dobISO}`);
-          }
+        const parsed = new Date(dobISO);
+        if (isNaN(parsed.getTime())) {
+          throw new Error(`Invalid date format: ${dobISO}`);
         }
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        dobISO = `${y}-${m}-${d}T00:00:00.000Z`;
       }
     }
     

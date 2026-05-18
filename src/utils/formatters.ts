@@ -123,26 +123,42 @@ export const isValidDate = (date: string): boolean => {
 };
 
 /**
- * Formats an ISO date string to a readable format (e.g., "April 3, 1979")
+ * Formats an ISO date string to a readable format (e.g., "April 3, 1979").
+ * For date-only values stored as ISO datetimes (e.g. DOB "1988-08-07T00:00:00.000Z"),
+ * parses the YYYY-MM-DD prefix so the displayed calendar day matches the stored date
+ * regardless of device timezone (UTC midnight would otherwise shift back one day in
+ * negative-offset zones, e.g. Aug 7 UTC → "August 6" in PDT).
  */
 export const formatDateForDisplay = (isoDate: string): string => {
   if (!isoDate) return '';
-  
+
   try {
-    const date = new Date(isoDate);
-    if (isNaN(date.getTime())) {
-      // If it's not a valid ISO date, try to parse as MM/DD/YYYY
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(isoDate)) {
-        const [month, day, year] = isoDate.split('/').map(Number);
-        return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    const isoPrefix = isoDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoPrefix) {
+      const year = parseInt(isoPrefix[1]!, 10);
+      const month = parseInt(isoPrefix[2]!, 10) - 1;
+      const day = parseInt(isoPrefix[3]!, 10);
+      const calendarDate = new Date(year, month, day);
+      if (!isNaN(calendarDate.getTime())) {
+        return calendarDate.toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
         });
       }
-      return isoDate; // Return as-is if can't parse
     }
-    
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(isoDate)) {
+      const [month, day, year] = isoDate.split('/').map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    }
+
+    const date = new Date(isoDate);
+    if (isNaN(date.getTime())) return isoDate;
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',

@@ -963,6 +963,53 @@ export const deleteAccount = async (): Promise<void> => {
   }
 };
 
+/**
+ * Delete an account by userId without requiring an active session.
+ * Used to discard an unverified account from the OTP confirmation screen,
+ * where the session has already been cleared as part of the OTP send flow.
+ * Frees the email/username/phone for a clean re-signup with corrections.
+ */
+export const deleteAccountById = async (userId: string): Promise<void> => {
+  console.log('[auth.deleteAccountById] Deleting unverified account', userId);
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  const functionId = APPWRITE_EVENTS_FUNCTION_ID;
+  if (!functionId) {
+    throw new Error('Function ID not configured');
+  }
+
+  const execution = await functions.createExecution({
+    functionId,
+    body: JSON.stringify({ userId }),
+    method: ExecutionMethod.POST,
+    xpath: '/delete-account',
+    headers: { 'Content-Type': 'application/json' },
+    async: false,
+  });
+
+  if (execution.status === 'failed') {
+    let errorMessage = 'Failed to delete account';
+    if (execution.responseBody) {
+      try {
+        const errorResponse = JSON.parse(execution.responseBody);
+        errorMessage = errorResponse.error || errorResponse.message || execution.responseBody;
+      } catch {
+        errorMessage = execution.responseBody;
+      }
+    }
+    throw new Error(errorMessage);
+  }
+
+  if (execution.responseBody) {
+    const result = JSON.parse(execution.responseBody);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete account');
+    }
+  }
+};
+
 export default {
   signup,
   login,
@@ -982,5 +1029,6 @@ export default {
   updateEmail,
   updatePassword,
   deleteAccount,
+  deleteAccountById,
 };
 

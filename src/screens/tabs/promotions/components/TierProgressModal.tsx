@@ -18,9 +18,9 @@ import { Tier } from './TierItem';
 import { CloseIcon } from '@/components';
 import { captureAndShareView } from '@/utils/captureAndShare';
 import ModalBackdrop from '@/components/shared/ModalBackdrop';
+import { APP_STORE_SHARE_SUFFIX } from '@/constants';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const appDownloadLink = 'https://samplefinder.com';
 
 interface TierProgressModalProps {
   visible: boolean;
@@ -99,7 +99,7 @@ const TierProgressModal: React.FC<TierProgressModalProps> = ({
       }
       return `I just leveled up to the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.`;
     }
-    return `I'm earning the ${tierName} tier on SampleFinder! Join me in discovering amazing samples. ${appDownloadLink}`;
+    return `I'm earning the ${tierName} tier on SampleFinder! Join me in discovering amazing samples.\n\n${APP_STORE_SHARE_SUFFIX}`;
   };
 
   const handleShare = async () => {
