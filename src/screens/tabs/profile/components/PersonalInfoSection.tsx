@@ -21,24 +21,23 @@ const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
     email: 'thesamplefinder@gmail.com',
   },
 }) => {
+  const rows: { label: string; value?: string }[] = [
+    { label: 'TIER STATUS:', value: data.tierStatus },
+    { label: 'DATE OF BIRTH:', value: data.dateOfBirth },
+    { label: 'PHONE NUMBER:', value: data.phoneNumber },
+    { label: 'EMAIL:', value: data.email },
+  ];
+
   return (
     <View style={styles.container}>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>TIER STATUS:</Text>
-        <Text style={styles.infoValue}>{data.tierStatus}</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>DATE OF BIRTH:</Text>
-        <Text style={styles.infoValue}>{data.dateOfBirth}</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>PHONE NUMBER:</Text>
-        <Text style={styles.infoValue}>{data.phoneNumber}</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>EMAIL:</Text>
-        <Text style={styles.infoValue}>{data.email}</Text>
-      </View>
+      {rows.map(({ label, value }) =>
+        value ? (
+          <View key={label} style={styles.infoRow}>
+            <Text style={styles.infoLabel}>{label}</Text>
+            <Text style={styles.infoValue}>{value}</Text>
+          </View>
+        ) : null,
+      )}
     </View>
   );
 };
@@ -56,17 +55,21 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 17,
+    lineHeight: 22,
     fontFamily: 'Quicksand_700Bold',
     color: Colors.blueColorMode,
     marginRight: 8,
     width: '40%',
+    includeFontPadding: false,
   },
   infoValue: {
     fontSize: 17,
+    lineHeight: 22,
     fontFamily: 'Quicksand_500Medium',
     color: Colors.pinBlueBlack,
     flex: 1,
     flexShrink: 1,
+    includeFontPadding: false,
   },
 });
 
