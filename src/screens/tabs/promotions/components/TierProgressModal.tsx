@@ -95,9 +95,9 @@ const TierProgressModal: React.FC<TierProgressModalProps> = ({
     const tierName = tier?.name ?? 'a new tier';
     if (isEarnedMidTier) {
       if (tierNumber === 1) {
-        return `I just earned the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.`;
+        return `I just earned the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.\n\n${APP_STORE_SHARE_SUFFIX}`;
       }
-      return `I just leveled up to the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.`;
+      return `I just leveled up to the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.\n\n${APP_STORE_SHARE_SUFFIX}`;
     }
     return `I'm earning the ${tierName} tier on SampleFinder! Join me in discovering amazing samples.\n\n${APP_STORE_SHARE_SUFFIX}`;
   };

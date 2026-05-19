@@ -18,6 +18,7 @@ import { Tier } from './TierItem';
 import { CloseIcon } from '@/components';
 import { captureAndShareView } from '@/utils/captureAndShare';
 import ModalBackdrop from '@/components/shared/ModalBackdrop';
+import { APP_STORE_SHARE_SUFFIX } from '@/constants';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -70,9 +71,9 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
   const getShareMessage = () => {
     const tierName = tier?.name ?? 'a new tier';
     if (tier?.order === 1) {
-      return `I just earned the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.`;
+      return `I just earned the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.\n\n${APP_STORE_SHARE_SUFFIX}`;
     }
-    return `I just leveled up to the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.`;
+    return `I just leveled up to the ${tierName} tier on SampleFinder! Join me in discovering amazing samples and earning rewards.\n\n${APP_STORE_SHARE_SUFFIX}`;
   };
 
   const handleShare = async () => {
