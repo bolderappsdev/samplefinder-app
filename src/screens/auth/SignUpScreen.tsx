@@ -114,7 +114,7 @@ const SignUpScreen = () => {
         </View>
 
         <CustomInput
-          label="Phone Number (optional)"
+          label="Phone Number"
           value={phoneNumber}
           onChangeText={setPhoneNumber}
           type="phone"
