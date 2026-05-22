@@ -13,6 +13,7 @@ import {
   getUserProfile,
   fetchTiers,
   getSetting,
+  resolveCanonicalTier,
   CheckInRow,
   ReviewRow,
   TierRow,
@@ -54,32 +55,6 @@ export const usePromotionsScreen = (options: UsePromotionsScreenOptions = {}) =>
   const [isAmbassador, setIsAmbassador] = useState(false);
   const [isInfluencer, setIsInfluencer] = useState(false);
 
-  const normalizeTierKey = (value: string) =>
-    value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  const resolveCanonicalTier = (tiers: TierRow[], tierLevelValue: string): TierRow | null => {
-    if (!tierLevelValue) return null;
-
-    const normalizedValue = normalizeTierKey(tierLevelValue);
-    if (!normalizedValue) return null;
-
-    // 1) Exact-ish name match (case/spacing/punctuation insensitive)
-    const byName = tiers.find((tier) => normalizeTierKey(tier.name ?? '') === normalizedValue);
-    if (byName) return byName;
-
-    // 2) Numeric match for values like "2", "tier 2", "level 2"
-    const tierNumberMatch = tierLevelValue.match(/\d+/);
-    if (tierNumberMatch) {
-      const tierOrder = Number.parseInt(tierNumberMatch[0], 10);
-      if (Number.isFinite(tierOrder)) {
-        const byOrder = tiers.find((tier) => (tier.order ?? 0) === tierOrder);
-        if (byOrder) return byOrder;
-      }
-    }
-
-    return null;
-  };
-
   const getPointsTierOrder = (tiers: TierRow[], points: number): number | null => {
     if (!tiers.length) return null;
     const achieved = tiers
@@ -87,7 +62,7 @@ export const usePromotionsScreen = (options: UsePromotionsScreenOptions = {}) =>
       .sort((a, b) => (b.order ?? 0) - (a.order ?? 0))[0];
     return achieved?.order ?? null;
   };
-  
+
   // Fetch user statistics and history on mount and when screen comes into focus
   useFocusEffect(
     useCallback(() => {

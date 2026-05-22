@@ -6,7 +6,7 @@ import BottomSheet from '@gorhom/bottom-sheet';
 import { logout } from '@/lib/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { captureAndShareView } from '@/utils/captureAndShare';
-import { getUserProfile, calculateTierStatus, fetchTiers, getUserCurrentTier, UserProfileRow, getUserCheckInsCount, getUserReviewsCount, getUnreadNotificationCount } from '@/lib/database';
+import { getUserProfile, calculateTierStatus, fetchTiers, resolveEffectiveTier, UserProfileRow, getUserCheckInsCount, getUserReviewsCount, getUnreadNotificationCount } from '@/lib/database';
 import { formatDateForDisplay } from '@/utils/formatters';
 import { countAchievedBadges, APP_STORE_SHARE_SUFFIX } from '@/constants';
 
@@ -85,18 +85,16 @@ export const useProfileScreen = (options: UseProfileScreenOptions = {}) => {
           badgeAchievements: totalBadges,
         });
 
-        // Prefer stored tierLevel from profile as the canonical tier,
-        // falling back to points-based calculation for legacy profiles.
-        if (userProfile.tierLevel && userProfile.tierLevel.trim().length > 0) {
-          setTierStatus(userProfile.tierLevel);
-        } else {
-          try {
-            const tiers = await fetchTiers();
-            const currentTier = getUserCurrentTier(tiers, totalPoints);
-            setTierStatus(currentTier?.name ?? 'NewbieSampler');
-          } catch (tierErr) {
-            setTierStatus(calculateTierStatus(totalPoints));
-          }
+        // Show the tier the user has earned: highest of stored tierLevel
+        // and points-derived tier. Matches the Achievements screen so the
+        // two surfaces never disagree when stored tierLevel lags points.
+        try {
+          const tiers = await fetchTiers();
+          const effectiveTier = resolveEffectiveTier(tiers, userProfile.tierLevel, totalPoints);
+          setTierStatus(effectiveTier?.name ?? userProfile.tierLevel ?? 'NewbieSampler');
+        } catch (tierErr) {
+          const stored = userProfile.tierLevel?.trim();
+          setTierStatus(stored && stored.length > 0 ? stored : calculateTierStatus(totalPoints));
         }
       } else {
         setTierStatus('NewbieSampler');

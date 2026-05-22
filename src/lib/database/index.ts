@@ -98,6 +98,8 @@ export {
   fetchTiers,
   getUserCurrentTier,
   getUserNextTier,
+  resolveCanonicalTier,
+  resolveEffectiveTier,
 } from './tiers';
 
 // Re-export trivia functions
