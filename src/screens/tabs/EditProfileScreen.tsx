@@ -36,9 +36,7 @@ const EditProfileScreen = () => {
     'Unknown';
   const appBuildNumber =
     Constants.nativeBuildVersion ||
-    // @ts-expect-error expoConfig platform-specific fields
     (Constants.expoConfig as any)?.ios?.buildNumber ||
-    // @ts-expect-error expoConfig platform-specific fields
     (Constants.expoConfig as any)?.android?.versionCode ||
     'Unknown';
 

@@ -2,6 +2,8 @@ import React, { useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Colors } from '@/constants/Colors';
 
+type TouchableRef = React.ComponentRef<typeof TouchableOpacity>;
+
 export type FilterType = 'radius' | 'dates' | 'categories' | 'reset';
 
 export interface FilterButtonLayout {
@@ -30,11 +32,11 @@ const FilterButtons: React.FC<FilterButtonsProps> = ({
   categoriesCount = 0,
   hasAnyFilters = false,
 }) => {
-  const radiusButtonRef = useRef<TouchableOpacity>(null);
-  const datesButtonRef = useRef<TouchableOpacity>(null);
-  const categoriesButtonRef = useRef<TouchableOpacity>(null);
+  const radiusButtonRef = useRef<TouchableRef>(null);
+  const datesButtonRef = useRef<TouchableRef>(null);
+  const categoriesButtonRef = useRef<TouchableRef>(null);
 
-  const createMeasureFn = (ref: React.RefObject<TouchableOpacity> | null): MeasureCallback => {
+  const createMeasureFn = (ref: React.RefObject<TouchableRef | null> | null): MeasureCallback => {
     return (callback) => {
       if (ref?.current) {
         ref.current.measureInWindow((x, y, width, height) => {
@@ -44,7 +46,7 @@ const FilterButtons: React.FC<FilterButtonsProps> = ({
     };
   };
 
-  const handleFilterPress = (filter: FilterType, ref: React.RefObject<TouchableOpacity> | null) => {
+  const handleFilterPress = (filter: FilterType, ref: React.RefObject<TouchableRef | null> | null) => {
     if (filter === 'reset') {
       onFilterPress(filter, () => {});
     } else {

@@ -8,6 +8,7 @@ declare module '@env' {
   export const APPWRITE_LOCATIONS_TABLE_ID: string;
   export const APPWRITE_CATEGORIES_TABLE_ID: string;
   export const APPWRITE_TIERS_TABLE_ID: string;
+  export const APPWRITE_SETTINGS_TABLE_ID: string;
   export const APPWRITE_BUCKET_ID: string;
   export const APPWRITE_EVENTS_FUNCTION_ID: string;
 }

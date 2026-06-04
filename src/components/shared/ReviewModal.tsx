@@ -156,7 +156,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       backdropComponent={renderBackdrop}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustNothing"
+      android_keyboardInputMode="adjustPan"
       overDragResistanceFactor={0}
       bottomInset={0}
     >
