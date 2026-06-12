@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Keyboard } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import * as Notifications from 'expo-notifications';
 import { signup } from '@/lib/auth';
-import { isValidEmail, isValidPhoneNumber, isValidDate } from '@/utils/formatters';
+import { isValidEmail, isValidPhoneNumber, isValidDate, calculateAgeFromDOB } from '@/utils/formatters';
 import { checkUsernameExists, checkPhoneNumberExists } from '@/lib/database/users';
 import {
   normalizeReferralCodeInput,
@@ -14,6 +15,13 @@ import {
 import { REFERRAL_CODE_PATTERN } from '@/lib/deepLink.constants';
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
+
+/** Minimum age required to create an account. Applicants under this age are blocked (COPPA). */
+const MINIMUM_SIGNUP_AGE = 13;
+/** Inline (red, under-field) message shown when the entered DOB is under the minimum age. */
+const UNDER_AGE_FIELD_ERROR = `You must be at least ${MINIMUM_SIGNUP_AGE} years old to create an account`;
+/** Body copy for the blocking age-requirement popup. */
+const UNDER_AGE_MODAL_MESSAGE = `You must be at least ${MINIMUM_SIGNUP_AGE} years old to create a SampleFinder account.`;
 
 interface FieldErrors {
   firstName?: string;
@@ -49,6 +57,7 @@ export const useSignUpScreen = () => {
   const [showError, setShowError] = useState(false);
   const [showPushNotificationModal, setShowPushNotificationModal] = useState(false);
   const [showAgeVerificationModal, setShowAgeVerificationModal] = useState(false);
+  const [showAgeRestrictionModal, setShowAgeRestrictionModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [ageVerified, setAgeVerified] = useState(false);
@@ -67,6 +76,10 @@ export const useSignUpScreen = () => {
   // Debounce timer for username checking
   const usernameCheckTimer = useRef<NodeJS.Timeout | null>(null);
   const phoneCheckTimer = useRef<NodeJS.Timeout | null>(null);
+  // Tracks whether the age-requirement popup has already been shown for the current
+  // under-13 entry, so it does not re-open on every keystroke after the user dismisses
+  // it. Reset once a valid date of at least the minimum age is entered.
+  const ageRestrictionShownRef = useRef(false);
   
   // Store original signup data to allow re-submission with same credentials
   // This is set after initial signup attempt and cleared on unmount
@@ -138,6 +151,11 @@ export const useSignUpScreen = () => {
         return 'Date cannot be in the future or before 1900';
       }
       return 'Please enter a valid date';
+    }
+    // Date is valid: enforce the minimum age for account creation.
+    const age = calculateAgeFromDOB(value);
+    if (age !== null && age < MINIMUM_SIGNUP_AGE) {
+      return UNDER_AGE_FIELD_ERROR;
     }
     return undefined;
   };
@@ -473,6 +491,24 @@ export const useSignUpScreen = () => {
     updateFieldError('dateOfBirth', error);
     setShowError(false);
     setErrorMessage('');
+
+    // Surface the blocking age-requirement popup the moment a complete, valid,
+    // under-13 birthdate is entered. The inline error disables the Sign Up button,
+    // so the popup is triggered here rather than on submit. The ref guard shows it
+    // once per under-13 entry (not on every keystroke) and resets when the date
+    // becomes a valid, eligible age.
+    if (isValidDate(text)) {
+      const age = calculateAgeFromDOB(text);
+      if (age !== null && age < MINIMUM_SIGNUP_AGE) {
+        if (!ageRestrictionShownRef.current) {
+          ageRestrictionShownRef.current = true;
+          Keyboard.dismiss();
+          setShowAgeRestrictionModal(true);
+        }
+      } else {
+        ageRestrictionShownRef.current = false;
+      }
+    }
   };
 
   const handleUsernameChange = (text: string) => {
@@ -556,6 +592,18 @@ export const useSignUpScreen = () => {
   };
 
   const submitSignUp = async () => {
+    // Hard age gate: applicants under the minimum age cannot create an account.
+    // The inline error normally disables the Sign Up button before this runs, but
+    // this guard guarantees signup() is never reached for an under-age applicant.
+    if (isValidDate(dateOfBirth)) {
+      const age = calculateAgeFromDOB(dateOfBirth);
+      if (age !== null && age < MINIMUM_SIGNUP_AGE) {
+        updateFieldError('dateOfBirth', UNDER_AGE_FIELD_ERROR);
+        setShowAgeRestrictionModal(true);
+        return;
+      }
+    }
+
     const isValid = await validateAllFields();
     if (!isValid) {
       setShowError(true);
@@ -737,6 +785,8 @@ export const useSignUpScreen = () => {
     showError,
     showPushNotificationModal,
     showAgeVerificationModal,
+    showAgeRestrictionModal,
+    ageRestrictionMessage: UNDER_AGE_MODAL_MESSAGE,
     showTermsModal,
     showPrivacyModal,
     ageVerified,
@@ -754,6 +804,7 @@ export const useSignUpScreen = () => {
     setReferralCode: handleReferralCodeChange,
     setShowPushNotificationModal,
     setShowAgeVerificationModal,
+    setShowAgeRestrictionModal,
     setShowTermsModal,
     setShowPrivacyModal,
     handleSignIn,

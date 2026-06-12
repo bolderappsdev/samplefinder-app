@@ -118,8 +118,40 @@ export const isValidDate = (date: string): boolean => {
   dateObj.setHours(0, 0, 0, 0);
   
   if (dateObj > today) return false;
-  
+
   return true;
+};
+
+/**
+ * Calculates a whole-year age from a date of birth in MM/DD/YYYY format.
+ * Accounts for whether the birthday has already occurred this year.
+ * Returns null when the string cannot be parsed as a real calendar date,
+ * so callers can distinguish "unknown" from a computed age.
+ */
+export const calculateAgeFromDOB = (dateOfBirth: string): number | null => {
+  const parts = dateOfBirth.split('/').map(Number);
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+    return null;
+  }
+  const [month, day, year] = parts;
+  const birthDate = new Date(year, month - 1, day);
+
+  // Reject values that rolled over (e.g. month 13, Feb 30) into a different date.
+  if (
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const monthDiff = today.getMonth() - (month - 1);
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < day)) {
+    age--;
+  }
+  return age;
 };
 
 /**
