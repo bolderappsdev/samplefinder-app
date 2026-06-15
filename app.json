@@ -2,7 +2,7 @@
   "expo": {
     "name": "SampleFinder",
     "slug": "samplefinder-app",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +13,7 @@
       "backgroundColor": "#1a1a2e"
     },
     "ios": {
-      "buildNumber": "78",
+      "buildNumber": "79",
       "supportsTablet": false,
       "bundleIdentifier": "com.samplefinder.app",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -37,7 +37,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "versionCode": 78,
+      "versionCode": 79,
       "package": "com.samplefinder.app",
       "googleServicesFile": "./google-services.json",
       "permissions": [
