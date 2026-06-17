@@ -11,6 +11,7 @@ import CustomInput from '@/components/shared/CustomInput';
 import CustomButton from '@/components/shared/CustomButton';
 import { useSignUpScreen } from './useSignUpScreen';
 import { AgeVerificationModal, TermsModal, PrivacyModal, PushNotificationModal } from './signup/components';
+import ErrorModal from '@/components/shared/ErrorModal';
 import styles from './signup/styles';
 import { Colors } from '@/constants/Colors';
 import { Monicon } from '@monicon/native';
@@ -40,6 +41,8 @@ const SignUpScreen = () => {
     showError,
     showPushNotificationModal,
     showAgeVerificationModal,
+    showAgeRestrictionModal,
+    ageRestrictionMessage,
     showTermsModal,
     showPrivacyModal,
     isLoading,
@@ -56,6 +59,7 @@ const SignUpScreen = () => {
     setReferralCode,
     setShowPushNotificationModal,
     setShowAgeVerificationModal,
+    setShowAgeRestrictionModal,
     setShowTermsModal,
     setShowPrivacyModal,
     handleSignIn,
@@ -133,7 +137,7 @@ const SignUpScreen = () => {
           helpIconVariant="outlined"
           onHelpPress={() => setShowAgeVerificationModal(true)}
           error={!!fieldErrors.dateOfBirth}
-  
+          errorMessage={fieldErrors.dateOfBirth}
         />
 
         <CustomInput
@@ -278,6 +282,13 @@ const SignUpScreen = () => {
         visible={showAgeVerificationModal}
         onClose={handleAgeVerificationDismiss}
         onAccept={handleAgeVerificationAccept}
+      />
+
+      <ErrorModal
+        visible={showAgeRestrictionModal}
+        title="Age Requirement"
+        message={ageRestrictionMessage}
+        onClose={() => setShowAgeRestrictionModal(false)}
       />
 
       <TermsModal

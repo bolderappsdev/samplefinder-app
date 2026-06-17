@@ -3,6 +3,7 @@ import appwriteClient from './appwrite';
 import { createUserProfile } from './database';
 import { storePendingReferralCode } from './referral';
 import { functions } from './database/config';
+import { calculateAgeFromDOB } from '@/utils/formatters';
 import { APPWRITE_EVENTS_FUNCTION_ID } from '@env';
 // Note: Push notifications are initialized after email verification completes,
 // not during login/signup, to avoid race conditions with session deletion
@@ -10,32 +11,15 @@ import { APPWRITE_EVENTS_FUNCTION_ID } from '@env';
 const account = new Account(appwriteClient);
 
 /**
- * Calculate if a user is an adult (21 years or older) based on their date of birth
+ * Calculate if a user is an adult (21 years or older) based on their date of birth.
+ * Used to set the `isAdult` profile flag for age-restricted (alcohol/tobacco/etc.)
+ * disclaimers. Distinct from the 13+ account-eligibility gate enforced at sign-up.
  * @param dateOfBirth - Date string in MM/DD/YYYY format
- * @returns true if user is 21 or older, false otherwise
+ * @returns true if user is 21 or older, false otherwise (including unparseable dates)
  */
 const calculateIsAdult = (dateOfBirth: string): boolean => {
-  try {
-    // Parse MM/DD/YYYY format
-    const [month, day, year] = dateOfBirth.split('/').map(Number);
-    const birthDate = new Date(year, month - 1, day);
-    
-    // Calculate age
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    // Adjust age if birthday hasn't occurred this year yet
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    
-    return age >= 21;
-  } catch (error) {
-    console.error('[auth.calculateIsAdult] Error calculating age:', error);
-    // Default to false if there's an error parsing the date
-    return false;
-  }
+  const age = calculateAgeFromDOB(dateOfBirth);
+  return age !== null && age >= 21;
 };
 
 export interface LoginCredentials {
