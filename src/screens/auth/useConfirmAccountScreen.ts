@@ -5,11 +5,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { verifyEmail, sendEmailOTP, resendVerificationEmail, logout, deleteAccountById } from '@/lib/auth';
 import { useAuthStore } from '@/stores/authStore';
-import { initializePushNotifications } from '@/lib/notifications';
-import { createUserNotification } from '@/lib/database';
-import { applyReferralAfterVerification } from '@/lib/referral';
+import { getUserProfile } from '@/lib/database';
+import { completeSignupOnboarding } from '@/lib/signupOnboarding';
 import { CodeInputRef } from '@/components/shared/CodeInput';
-import { useTier1ModalStore } from '@/stores/tier1ModalStore';
+import { PHONE_VERIFICATION_ENABLED } from '@/constants/featureFlags';
 
 type ConfirmAccountScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ConfirmAccount'>;
 
@@ -28,7 +27,6 @@ export const useConfirmAccountScreen = () => {
   const [canResend, setCanResend] = useState(false);
   const [isAbandoning, setIsAbandoning] = useState(false);
   const codeInputRef = useRef<CodeInputRef>(null);
-  const welcomeNotificationAttempted = useRef(false);
   /** Set after a successful verify so the beforeRemove listener does not block onward navigation. */
   const verificationCompletedRef = useRef(false);
   /** Set while abandonment is in progress so beforeRemove allows the actual goBack. */
@@ -122,48 +120,29 @@ export const useConfirmAccountScreen = () => {
     try {
       await verifyEmail(userId, code);
 
-      await applyReferralAfterVerification(userId);
-
-      // Small delay to ensure backend has updated the profile with usedReferralCode
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Populate auth store before Tier 1 modal logic in App.tsx runs; that effect
-      // reads `user` and only depends on [shouldShowTier1Modal, appIsReady], so it
-      // would otherwise bail once with `user === null` and never retry.
-      await useAuthStore.getState().fetchUser();
-
-      // Register FCM + Appwrite push target before welcome notification: `createUserNotification`
-      // triggers `sendPushNotification`, which needs an existing target for this user.
-      try {
-        await initializePushNotifications();
-      } catch (error) {
-        console.warn('[ConfirmAccount] Push initialization failed (in-app welcome still attempted):', error);
-      }
-
-      // Create a welcome notification (in-app list + optional device push if permitted).
-      // Only attempt once per verification session to prevent duplicates.
-      if (!welcomeNotificationAttempted.current) {
-        welcomeNotificationAttempted.current = true;
+      // Phone verification enabled: hand off to the phone step, which runs the
+      // shared onboarding after BOTH verifications.
+      if (PHONE_VERIFICATION_ENABLED) {
+        let phoneNumber: string | undefined;
         try {
-          await createUserNotification({
-            userId,
-            type: 'tierChanged',
-            title: 'Welcome to SampleFinder!',
-            message: "You've joined! Start discovering samples and earning rewards.",
-            data: { source: 'signup', tierWelcome: 'true' },
-          });
-        } catch (notifErr) {
-          console.warn('[ConfirmAccount] Failed to create welcome notification:', notifErr);
-          // Reset flag on error so it can be retried if verification is attempted again
-          welcomeNotificationAttempted.current = false;
+          const profile = await getUserProfile(userId);
+          phoneNumber = profile?.phoneNumber || undefined;
+        } catch {
+          // Display-only; ConfirmPhone re-fetches if needed.
         }
+        await useAuthStore.getState().fetchUser();
+        verificationCompletedRef.current = true;
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'ConfirmPhone' as never, params: { phoneNumber } as never }],
+        });
+        return;
       }
 
-      // Trigger Tier 1 modal for newly signed up users (auth user must be set).
-      useTier1ModalStore.getState().setShouldShowTier1Modal(true);
+      // Phone verification disabled: complete onboarding now (same behavior as
+      // before this feature, via the shared helper).
+      await completeSignupOnboarding(userId);
 
-      // After successful verification, go straight into the app.
-      // Notifications should only be accessed from the Profile section.
       verificationCompletedRef.current = true;
       navigation.reset({
         index: 0,
