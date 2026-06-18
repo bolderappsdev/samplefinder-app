@@ -51,17 +51,19 @@ export const useConfirmPhoneScreen = () => {
   // Send the SMS once on mount. The active session was (re)established by the
   // email-OTP step, and the account phone was set during signup().
   useEffect(() => {
+    let expiredRedirect: ReturnType<typeof setTimeout> | undefined;
     const init = async () => {
       try {
         const user = useAuthStore.getState().user ?? (await useAuthStore.getState().fetchUser());
         if (!user) {
           setError('Session expired. Please sign in again to verify your phone.');
-          setTimeout(() => navigation.replace('Login'), 2000);
+          expiredRedirect = setTimeout(() => navigation.replace('Login'), 2000);
           return;
         }
         setUserId(user.$id);
 
-        if (!phoneNumber) {
+        // Fetch the phone for display only when it wasn't passed as a route param.
+        if (!route.params?.phoneNumber) {
           try {
             const profile = await getUserProfile(user.$id);
             if (profile?.phoneNumber) setPhoneNumber(profile.phoneNumber);
@@ -83,8 +85,11 @@ export const useConfirmPhoneScreen = () => {
     init();
 
     const timer = setTimeout(() => codeInputRef.current?.focus(), 100);
-    return () => clearTimeout(timer);
-  }, [navigation, phoneNumber]);
+    return () => {
+      clearTimeout(timer);
+      if (expiredRedirect) clearTimeout(expiredRedirect);
+    };
+  }, [navigation]);
 
   const handleVerify = async () => {
     if (!userId) {
