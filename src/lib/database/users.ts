@@ -3,6 +3,7 @@ import { USERNAME_TOO_LONG_MESSAGE } from '@/constants/Profile';
 import { APPWRITE_EVENTS_FUNCTION_ID } from '@env';
 import { tablesDB, functions, DATABASE_ID, USER_PROFILES_TABLE_ID } from './config';
 import type { UserProfileData, UserProfileRow } from './types';
+import { PHONE_VERIFICATION_ENABLED } from '@/constants/featureFlags';
 import type { NotificationPreferences } from '../notifications/types';
 
 /**
@@ -229,6 +230,9 @@ export const createUserProfile = async (profileData: UserProfileData): Promise<v
       idAdult: profileData.isAdult ?? false, // Use 'idAdult' to match Appwrite column name
       referralCode: referralCode,
       totalPoints: 100, // Sign up credit points for new users
+      // Only write phoneVerified once the feature (and its DB attribute) is live,
+      // so the dormant build does not depend on an attribute that may not exist yet.
+      ...(PHONE_VERIFICATION_ENABLED ? { phoneVerified: false } : {}),
     };
 
     console.log('[database.createUserProfile] Creating row with data:', {
@@ -883,6 +887,7 @@ export const getUserProfile = async (authID: string): Promise<UserProfileRow | n
       notifications: profile.notifications || [],
       notificationPreferences: profile.notificationPreferences,
       tierLevel: profile.tierLevel ?? null,
+      phoneVerified: Boolean(profile.phoneVerified),
     };
   } catch (error: any) {
     console.error('[database.getUserProfile] Error fetching user profile:', error);
@@ -890,6 +895,33 @@ export const getUserProfile = async (authID: string): Promise<UserProfileRow | n
     console.error('[database.getUserProfile] Error code:', error?.code);
     throw new Error(error.message || 'Failed to fetch user profile');
   }
+};
+
+/**
+ * Mark the user's profile as phone-verified. Called after a successful
+ * Appwrite phone-verification OTP. The user has update permission on their
+ * own profile row, so this runs with the user's session.
+ */
+export const markPhoneVerified = async (authID: string): Promise<void> => {
+  console.log('[database.markPhoneVerified] Marking phone verified for authID:', authID);
+
+  if (!DATABASE_ID || !USER_PROFILES_TABLE_ID) {
+    throw new Error('Database ID or Table ID not configured. Please check your .env file.');
+  }
+
+  const profile = await getUserProfile(authID);
+  if (!profile) {
+    throw new Error('User profile not found');
+  }
+
+  await tablesDB.updateRow({
+    databaseId: DATABASE_ID,
+    tableId: USER_PROFILES_TABLE_ID,
+    rowId: profile.$id,
+    data: { phoneVerified: true },
+  });
+
+  console.log('[database.markPhoneVerified] Phone marked verified for profile:', profile.$id);
 };
 
 /**

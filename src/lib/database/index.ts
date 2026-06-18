@@ -33,6 +33,7 @@ export {
   checkUsernameExistsForDifferentUser,
   checkPhoneNumberExists,
   checkPhoneNumberExistsForDifferentUser,
+  markPhoneVerified,
 } from './users';
 
 // Re-export client functions

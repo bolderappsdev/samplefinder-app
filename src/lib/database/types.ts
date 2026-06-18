@@ -33,6 +33,8 @@ export interface UserProfileRow extends UserProfileData {
   notifications?: UserNotification[]; // User notification history
   notificationPreferences?: any; // User notification preferences (JSON object)
   tierLevel?: string | null; // Current tier name (e.g. "SampleFan") when user achieves a tier
+  /** True once SMS phone verification is complete (or grandfathered via backfill). */
+  phoneVerified?: boolean;
 }
 
 /**
