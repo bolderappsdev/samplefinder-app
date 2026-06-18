@@ -125,14 +125,13 @@ export const createReview = async (reviewData: ReviewData): Promise<ReviewRow> =
         await sendNewTierPushNotification(newTier.name);
 
         // Trigger global tier completion modal
-        const cleanImageURL = newTier.imageURL?.replace('&mode=admin', '') ?? null;
         const tierForModal: Tier = {
           id: newTier.$id,
           name: newTier.name,
           currentPoints: Math.min(newTotalPoints, newTier.requiredPoints),
           requiredPoints: newTier.requiredPoints,
           badgeEarned: newTotalPoints >= newTier.requiredPoints,
-          imageURL: cleanImageURL,
+          imageURL: newTier.imageURL ?? null,
           order: newTier.order,
         };
         

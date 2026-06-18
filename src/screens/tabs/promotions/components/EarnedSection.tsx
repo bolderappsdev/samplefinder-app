@@ -1,9 +1,8 @@
-import React, { useState, memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Monicon } from '@monicon/native';
 import { Colors } from '@/constants/Colors';
-import { getTierDisplayParts } from '@/utils/formatters';
+import { TierBadge } from '@/components';
 import { CertifiedBrandAmbassadorIcon, CertifiedInfluencerIcon } from '@/icons';
 import { Badge, Tier } from './index';
 import BadgeItem from './BadgeItem';
@@ -29,18 +28,15 @@ const EarnedSection: React.FC<EarnedSectionProps> = ({
   isAmbassador = false,
   isInfluencer = false,
 }) => {
-  const [imageError, setImageError] = useState(false);
-
   // Get earned badges
   const earnedEventBadges = eventBadges.filter((badge) => badge.achieved);
   const earnedReviewBadges = reviewBadges.filter((badge) => badge.achieved);
-  
+
   // Get the highest earned tier
   const earnedTiers = tiers.filter((tier) => tier.badgeEarned);
-  const currentTier = earnedTiers.length > 0 
+  const currentTier = earnedTiers.length > 0
     ? earnedTiers[earnedTiers.length - 1] // Get the most recent earned tier
     : tiers[0]; // Default to first tier if none earned
-  const currentTierDisplayParts = currentTier ? getTierDisplayParts(currentTier.name) : null;
 
   return (
     <View style={styles.cardWrapper}>
@@ -58,26 +54,7 @@ const EarnedSection: React.FC<EarnedSectionProps> = ({
               onPress={() => onTierPress?.(currentTier, totalPoints)}
               activeOpacity={0.7}
             >
-              <View style={styles.badgeIconContainer}>
-                {currentTier.imageURL && !imageError ? (
-                  <Image
-                    source={{ uri: currentTier.imageURL }}
-                    style={styles.tierImage}
-                    resizeMode="contain"
-                    onError={() => setImageError(true)}
-                  />
-                ) : (
-                  <Monicon name="ph:seal-fill" size={100} color={Colors.pinDarkBlue} />
-                )}
-              </View>
-              {currentTierDisplayParts && (
-                <View style={styles.tierNameRow}>
-                  <Text style={styles.tierName}>{currentTierDisplayParts.main}</Text>
-                  {currentTierDisplayParts.subtitle ? (
-                    <Text style={styles.tierNameSubtitle}>{currentTierDisplayParts.subtitle}</Text>
-                  ) : null}
-                </View>
-              )}
+              <TierBadge tier={currentTier} />
             </TouchableOpacity>
           )}
 
@@ -160,32 +137,6 @@ const styles = StyleSheet.create({
   badgeContainer: {
     alignItems: 'center',
     marginBottom: 16,
-  },
-  badgeIconContainer: {
-    marginBottom: 12,
-  },
-  tierImage: {
-    width: 100,
-    height: 100,
-  },
-  tierNameRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'baseline',
-    gap: 4,
-  },
-  tierName: {
-    fontSize: 22,
-    fontFamily: 'Quicksand_700Bold',
-    color: Colors.pinDarkBlue,
-    textAlign: 'center',
-  },
-  tierNameSubtitle: {
-    fontSize: 12,
-    fontFamily: 'Quicksand_500Medium',
-    color: Colors.pinDarkBlue,
-    textAlign: 'center',
   },
   pointsContainer: {
     alignItems: 'center',

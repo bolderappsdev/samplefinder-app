@@ -17,6 +17,7 @@ export { default as ConfirmationModal } from './shared/ConfirmationModal';
 export type { ConfirmationModalProps } from './shared/ConfirmationModal';
 export { default as CloseIcon } from './shared/CloseIcon';
 export { default as SealCheckLightIcon } from './shared/SealCheckLightIcon';
+export { default as TierBadge } from './shared/TierBadge';
 export { TriviaModal } from './trivia';
 export type { TriviaQuestion } from './trivia';
 

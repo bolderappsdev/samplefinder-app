@@ -3,6 +3,7 @@ import { View, ScrollView, ActivityIndicator, Text, RefreshControl } from 'react
 import { StatusBar } from 'expo-status-bar';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { Colors } from '@/constants/Colors';
+import { TierBadge } from '@/components';
 import BackShareHeader from '@/components/wrappers/BackShareHeader';
 import ReferFriendBottomSheet from '@/components/shared/ReferFriendBottomSheet';
 import ReferFriendSuccessBottomSheet from '@/components/shared/ReferFriendSuccessBottomSheet';
@@ -30,6 +31,7 @@ const ProfileScreen = () => {
     authUser,
     statistics,
     tierStatus,
+    currentTier,
     isLoading,
     isRefreshing,
     error,
@@ -131,7 +133,18 @@ const ProfileScreen = () => {
               tierStatus,
             }}
           />
-          <BrandAmbassadorSection 
+          {currentTier && (
+            <View
+              style={styles.tierBadge}
+              collapsable={false}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={`${currentTier.name} tier badge`}
+            >
+              <TierBadge tier={currentTier} />
+            </View>
+          )}
+          <BrandAmbassadorSection
             onApplyHerePress={handleApplyHerePress}
             isAmbassador={profile?.isAmbassador || false}
           />

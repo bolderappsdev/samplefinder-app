@@ -21,7 +21,7 @@ const toTierForModal = (tier: TierRow): Tier => ({
   currentPoints: tier.requiredPoints,
   requiredPoints: tier.requiredPoints,
   badgeEarned: true,
-  imageURL: tier.imageURL?.replace('&mode=admin', '') ?? null,
+  imageURL: tier.imageURL ?? null,
   order: tier.order,
 });
 

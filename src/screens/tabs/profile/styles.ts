@@ -14,6 +14,10 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     gap: 10,
   },
+  tierBadge: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
