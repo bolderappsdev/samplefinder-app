@@ -86,6 +86,29 @@ export const isValidPhoneNumber = (phone: string): boolean => {
 };
 
 /**
+ * Convert a US phone number (any common display format) to E.164 (+1XXXXXXXXXX),
+ * the format Appwrite requires for account phone verification.
+ * Accepts a 10-digit number, or an 11-digit number starting with 1.
+ *
+ * Examples:
+ *   toE164US('(617) 555-1212') === '+16175551212'
+ *   toE164US('6175551212')     === '+16175551212'
+ *   toE164US('1 617 555 1212') === '+16175551212'
+ *
+ * @throws Error when the input is not a valid US phone number.
+ */
+export const toE164US = (phone: string): string => {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+${digits}`;
+  }
+  throw new Error('Invalid US phone number; expected 10 digits.');
+};
+
+/**
  * Validates date format (MM/DD/YYYY) and ensures it's not a future date
  */
 export const isValidDate = (date: string): boolean => {
