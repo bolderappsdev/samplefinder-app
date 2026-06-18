@@ -12,7 +12,8 @@ import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
 import PasswordResetScreen from '@/screens/auth/PasswordResetScreen';
 import TabNavigator from '@/navigation/TabNavigator';
 import { useAuthStore } from '@/stores/authStore';
-import { markNotificationAsRead, markBadgeTypeNotificationsAsRead } from '@/lib/database';
+import { markNotificationAsRead, markBadgeTypeNotificationsAsRead, getUserProfile } from '@/lib/database';
+import { PHONE_VERIFICATION_ENABLED } from '@/constants/featureFlags';
 import { setNavigationRef, setupNotificationHandlers, getLastNotificationResponse } from '@/lib/notifications/handlers';
 import { subscribeToDeepLinks, handleIncomingReferralLink } from '@/lib/deepLink';
 import { DEEP_LINK_DOMAIN, CUSTOM_SCHEME } from '@/lib/deepLink.constants';
@@ -266,14 +267,27 @@ const AppNavigator = () => {
     try {
       const user = await useAuthStore.getState().fetchUser();
 
-      if (user) {
-        setInitialRouteName('MainTabs');
-      } else {
+      if (!user) {
         setInitialRouteName('Login');
+        return;
       }
+
+      if (PHONE_VERIFICATION_ENABLED) {
+        try {
+          const profile = await getUserProfile(user.$id);
+          if (profile && profile.phoneVerified === false) {
+            setInitialRouteName('ConfirmPhone');
+            return;
+          }
+        } catch (profileError) {
+          console.warn('[AppNavigator] phoneVerified gate check failed:', profileError);
+          // Fall through to MainTabs rather than locking a returning user out.
+        }
+      }
+
+      setInitialRouteName('MainTabs');
     } catch (error: any) {
       console.error('[AppNavigator] Error checking session:', error);
-      // On error, default to Login screen
       setInitialRouteName('Login');
     } finally {
       setIsLoading(false);

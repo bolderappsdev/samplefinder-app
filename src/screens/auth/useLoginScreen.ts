@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { login } from '@/lib/auth';
+import { login, ensureAccountPhoneForVerification } from '@/lib/auth';
+import { PHONE_VERIFICATION_ENABLED } from '@/constants/featureFlags';
 import { initializePushNotifications } from '@/lib/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { useFavoritesStore } from '@/stores/favoritesStore';
@@ -143,12 +144,11 @@ export const useLoginScreen = () => {
       // Sync Zustand with the new Appwrite session (logout/login does not run AppNavigator's initial fetchUser)
       const authedUser = await useAuthStore.getState().fetchUser();
 
-      // Hydrate favorites for this account so brand/event details show the correct
-      // favorite state immediately — without waiting for the user to open the
-      // Favourites tab.
+      // Hydrate favorites + read phoneVerified from the same profile fetch.
+      let profile: Awaited<ReturnType<typeof getUserProfile>> = null;
       if (authedUser) {
         try {
-          const profile = await getUserProfile(authedUser.$id);
+          profile = await getUserProfile(authedUser.$id);
           useFavoritesStore.getState().setFavorites(profile?.favoriteIds ?? []);
         } catch (favoritesError) {
           console.warn('[LoginScreen] Failed to hydrate favorites store:', favoritesError);
@@ -156,26 +156,30 @@ export const useLoginScreen = () => {
         }
       }
 
-      // Check if email is already verified
-      if (user.emailVerification) {
-        // Email already verified - go straight to main app
-        console.log('[LoginScreen] Email already verified, navigating to MainTabs');
-        
-        // Initialize push notifications for returning verified users
-        initializePushNotifications().catch((error) => {
-          console.warn('[LoginScreen] Failed to initialize push notifications:', error);
-          // Don't block navigation - push notifications are not critical
-        });
-        
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }],
-        });
-      } else {
-        // Email not verified - require OTP verification
+      // 1) Email not verified → existing email OTP flow.
+      if (!user.emailVerification) {
         console.log('[LoginScreen] Email not verified, navigating to ConfirmAccount');
         navigation.navigate('ConfirmAccount', {});
+        return;
       }
+
+      // 2) Phone not verified (new, non-grandfathered users) → phone step.
+      if (PHONE_VERIFICATION_ENABLED && profile && profile.phoneVerified === false) {
+        console.log('[LoginScreen] Phone not verified, navigating to ConfirmPhone');
+        await ensureAccountPhoneForVerification(profile.phoneNumber, password);
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'ConfirmPhone', params: { phoneNumber: profile.phoneNumber } }],
+        });
+        return;
+      }
+
+      // 3) Fully verified → main app.
+      console.log('[LoginScreen] Verified, navigating to MainTabs');
+      initializePushNotifications().catch((error) => {
+        console.warn('[LoginScreen] Failed to initialize push notifications:', error);
+      });
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
     } catch (error: any) {
       console.error('[LoginScreen] Login error:', error);
       handleLoginError(error);
