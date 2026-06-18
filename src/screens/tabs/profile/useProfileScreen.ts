@@ -6,7 +6,7 @@ import BottomSheet from '@gorhom/bottom-sheet';
 import { logout } from '@/lib/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { captureAndShareView } from '@/utils/captureAndShare';
-import { getUserProfile, calculateTierStatus, fetchTiers, resolveEffectiveTier, UserProfileRow, getUserCheckInsCount, getUserReviewsCount, getUnreadNotificationCount } from '@/lib/database';
+import { getUserProfile, calculateTierStatus, fetchTiers, resolveEffectiveTier, UserProfileRow, TierRow, getUserCheckInsCount, getUserReviewsCount, getUnreadNotificationCount } from '@/lib/database';
 import { countAchievedBadges, APP_STORE_SHARE_SUFFIX } from '@/constants';
 
 interface UseProfileScreenOptions {
@@ -33,6 +33,7 @@ export const useProfileScreen = (options: UseProfileScreenOptions = {}) => {
     badgeAchievements: 0,
   });
   const [tierStatus, setTierStatus] = useState<string>('NewbieSampler');
+  const [currentTier, setCurrentTier] = useState<TierRow | null>(null);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -91,17 +92,21 @@ export const useProfileScreen = (options: UseProfileScreenOptions = {}) => {
           const tiers = await fetchTiers();
           const effectiveTier = resolveEffectiveTier(tiers, userProfile.tierLevel, totalPoints);
           setTierStatus(effectiveTier?.name ?? userProfile.tierLevel ?? 'NewbieSampler');
+          setCurrentTier(effectiveTier);
         } catch (tierErr) {
           const stored = userProfile.tierLevel?.trim();
           setTierStatus(stored && stored.length > 0 ? stored : calculateTierStatus(totalPoints));
+          setCurrentTier(null);
         }
       } else {
         setTierStatus('NewbieSampler');
+        setCurrentTier(null);
         setHasUnreadNotifications(false);
       }
     } catch (err: any) {
       console.error('Error loading profile:', err);
       setError(err?.message || 'Failed to load profile');
+      setCurrentTier(null);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -250,6 +255,7 @@ export const useProfileScreen = (options: UseProfileScreenOptions = {}) => {
     authUser,
     statistics,
     tierStatus,
+    currentTier,
     hasUnreadNotifications,
     isLoading,
     isRefreshing,

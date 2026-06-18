@@ -477,9 +477,7 @@ export const usePromotionsScreen = (options: UsePromotionsScreenOptions = {}) =>
 
   // Map Appwrite tiers to UI Tier format
   const tiers: Tier[] = tiersData.map((tier) => {
-    // Remove mode=admin from URL to allow public access
-    const cleanImageURL = tier.imageURL?.replace('&mode=admin', '') ?? null;
-
+    // imageURL is already normalized for public access by fetchTiers().
     const earnedByTierLevel =
       canonicalTierOrder !== null ? (tier.order ?? 0) <= canonicalTierOrder : null;
 
@@ -496,7 +494,7 @@ export const usePromotionsScreen = (options: UsePromotionsScreenOptions = {}) =>
       currentPoints: badgeEarned ? tier.requiredPoints : Math.min(pointsForProgress, tier.requiredPoints),
       requiredPoints: tier.requiredPoints,
       badgeEarned,
-      imageURL: cleanImageURL,
+      imageURL: tier.imageURL ?? null,
       order: tier.order,
     };
   });

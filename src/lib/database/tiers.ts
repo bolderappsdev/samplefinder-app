@@ -3,6 +3,16 @@ import { DATABASE_ID, TIERS_TABLE_ID, tablesDB } from './config';
 import type { TierRow } from './types';
 
 /**
+ * Tier badge images are returned with a `&mode=admin` query flag that only
+ * resolves for admin-authenticated requests. The mobile app is session-based,
+ * so strip it to get a publicly-loadable file URL. No-op when the flag (or the
+ * URL itself) is absent. Centralized here so every tier consumer gets a usable
+ * URL without having to remember to clean it.
+ */
+export const cleanTierImageURL = (imageURL: string | null | undefined): string | null =>
+  imageURL?.replace('&mode=admin', '') ?? null;
+
+/**
  * Fetch all tiers ordered by their order field
  */
 export const fetchTiers = async (): Promise<TierRow[]> => {
@@ -17,7 +27,10 @@ export const fetchTiers = async (): Promise<TierRow[]> => {
       queries: [Query.orderAsc('order')]
     });
 
-    return response.rows as unknown as TierRow[];
+    const rows = response.rows as unknown as TierRow[];
+    // Normalize badge image URLs once, at the data boundary, so every consumer
+    // (profile, promotions, tier-up modals, awards) gets a publicly-loadable URL.
+    return rows.map((row) => ({ ...row, imageURL: cleanTierImageURL(row.imageURL) }));
   } catch (error: any) {
     console.error('Error fetching tiers:', error);
     throw error;
