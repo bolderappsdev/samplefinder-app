@@ -3,8 +3,9 @@ import appwriteClient from './appwrite';
 import { createUserProfile } from './database';
 import { storePendingReferralCode } from './referral';
 import { functions } from './database/config';
-import { calculateAgeFromDOB } from '@/utils/formatters';
+import { calculateAgeFromDOB, toE164US } from '@/utils/formatters';
 import { APPWRITE_EVENTS_FUNCTION_ID } from '@env';
+import { PHONE_VERIFICATION_ENABLED } from '@/constants/featureFlags';
 // Note: Push notifications are initialized after email verification completes,
 // not during login/signup, to avoid race conditions with session deletion
 
@@ -167,6 +168,18 @@ export const signup = async (credentials: SignUpCredentials): Promise<User> => {
       console.log('[auth.signup] User profile created successfully');
 
       await storePendingReferralCode(credentials.referralCode);
+
+      // Set the phone number on the Appwrite account (E.164) so Appwrite can
+      // later send the verification SMS. Requires the active session + password,
+      // both available here. A duplicate phone throws 409 and is handled by the
+      // outer catch (mapped to the "phone already exists" message).
+      if (PHONE_VERIFICATION_ENABLED) {
+        await account.updatePhone({
+          phone: toE164US(credentials.phoneNumber),
+          password: credentials.password,
+        });
+        console.log('[auth.signup] Account phone set for verification');
+      }
     } catch (profileError: any) {
       console.error('[auth.signup] Error creating user profile:', profileError);
       console.error('[auth.signup] Profile error message:', profileError?.message);
@@ -449,6 +462,66 @@ export const resendVerificationEmail = async (userId: string, email: string): Pr
   } catch (error: any) {
     console.error('[auth.resendVerificationEmail] Error:', error);
     throw new Error(error.message || 'Failed to resend verification email');
+  }
+};
+
+/**
+ * Send the phone-verification SMS to the account's current phone number.
+ * The phone must already be set on the account (done in signup() or repaired
+ * via ensureAccountPhoneForVerification). Requires an active session.
+ */
+export const sendPhoneVerification = async (): Promise<void> => {
+  console.log('[auth.sendPhoneVerification] Sending phone verification SMS');
+  try {
+    await account.createPhoneVerification();
+    console.log('[auth.sendPhoneVerification] Verification SMS sent');
+  } catch (error: any) {
+    console.error('[auth.sendPhoneVerification] Error:', error?.message);
+    throw new Error(error.message || 'Failed to send verification SMS. Please try again.');
+  }
+};
+
+/**
+ * Complete phone verification with the OTP the user received via SMS.
+ * Sets the native account.phoneVerification flag to true.
+ */
+export const verifyPhone = async (userId: string, secret: string): Promise<void> => {
+  console.log('[auth.verifyPhone] Verifying phone OTP for user:', userId);
+  try {
+    await account.updatePhoneVerification({ userId, secret });
+    console.log('[auth.verifyPhone] Phone verified successfully');
+  } catch (error: any) {
+    console.error('[auth.verifyPhone] Error:', error?.message);
+    const msg = (error?.message || '').toLowerCase();
+    if (msg.includes('invalid') || msg.includes('token') || msg.includes('expired')) {
+      throw new Error('Invalid or expired code. Please check your code and try again.');
+    }
+    throw new Error(error.message || 'Failed to verify phone. Please check your code.');
+  }
+};
+
+/**
+ * Repair path: ensure the account has a phone number set before phone
+ * verification. Used at login (where the password is available) to recover
+ * accounts whose phone was never set (e.g. a signup that failed mid-way).
+ * No-op if the account already has a phone.
+ */
+export const ensureAccountPhoneForVerification = async (
+  phoneNumber: string,
+  password: string
+): Promise<void> => {
+  try {
+    const acct = await account.get();
+    if (!acct.phone) {
+      await account.updatePhone({ phone: toE164US(phoneNumber), password });
+      console.log('[auth.ensureAccountPhoneForVerification] Account phone set (repair)');
+    }
+  } catch (error: any) {
+    console.warn(
+      '[auth.ensureAccountPhoneForVerification] Could not ensure account phone:',
+      error?.message
+    );
+    // Non-fatal: sendPhoneVerification will surface a clear error if the phone is missing.
   }
 };
 
