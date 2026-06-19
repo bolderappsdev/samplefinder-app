@@ -29,6 +29,7 @@ import { useCalendarEventsStore } from '@/stores/calendarEventsStore';
 import { useTierCompletionStore } from '@/stores/tierCompletionStore';
 import { convertEventToBrandDetails, extractClientFromEvent } from '@/utils/brandUtils';
 import { scheduleEventReminders, cancelEventReminders } from '@/lib/notifications/eventReminders';
+import { presentAddToDeviceCalendar } from '@/lib/calendar/deviceCalendar';
 import { getNavigationRef } from '@/lib/notifications/handlers';
 
 export interface BrandDetailsData {
@@ -401,6 +402,30 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
           }
         } catch (reminderErr) {
           console.warn('[handleAddToCalendar] Failed to schedule reminders:', reminderErr);
+        }
+      }
+
+      // Offer to add the event to the phone's native calendar via the OS sheet.
+      // Fire-and-forget: the result never affects the in-app "added" state, and any
+      // failure is swallowed so it cannot break the primary save above. The helper
+      // also returns 'skipped' on a missing/invalid start time.
+      if (eventData?.startTime) {
+        try {
+          const calendarNotes = [eventData.discount, eventData.brandDescription]
+            .map((part) => part?.trim())
+            .filter((part): part is string => !!part)
+            .join('\n\n');
+
+          await presentAddToDeviceCalendar({
+            title: eventTitle,
+            startTime: eventData.startTime,
+            endTime: eventData.endTime,
+            address: eventData.address,
+            city: eventData.city,
+            notes: calendarNotes || null,
+          });
+        } catch (deviceCalErr) {
+          console.warn('[handleAddToCalendar] Device calendar sheet failed:', deviceCalErr);
         }
       }
     } catch (error) {
