@@ -22,7 +22,8 @@
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to show nearby events and stores.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to show nearby events and stores.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload profile pictures.",
-        "NSCameraUsageDescription": "This app needs access to your camera to take profile pictures."
+        "NSCameraUsageDescription": "This app needs access to your camera to take profile pictures.",
+        "NSCalendarsUsageDescription": "Lets you add SampleFinder events to your personal calendar."
       },
       "usesAppleSignIn": false,
       "appleTeamId": "AYNR8DRWG3",
