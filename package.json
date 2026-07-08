@@ -4,6 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "start:staging": "APP_VARIANT=staging expo start",
     "typecheck": "tsc --noEmit",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -59,6 +60,7 @@
     "@iconify/json": "^2.2.407",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.2",
+    "dotenv": "^16.4.5",
     "file-loader": "^6.2.0",
     "react-native-dotenv": "^3.4.11",
     "reactotron-react-native": "^5.1.18",

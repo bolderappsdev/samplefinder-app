@@ -37,6 +37,13 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+.env.staging
+
+# Appwrite CLI artifacts — server config/functions are owned by samplefinder-admin,
+# never this repo. Guard against stray `appwrite` CLI output being committed here.
+appwrite.config.json
+/appwrite/
 
 # typescript
 *.tsbuildinfo
@@ -44,9 +51,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
-
-
-.env
 
 # lock files
 package-lock.json

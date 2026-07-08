@@ -1,6 +1,7 @@
 declare module '@env' {
   export const APPWRITE_PROJECT_ID: string;
   export const APPWRITE_ENDPOINT: string;
+  export const APPWRITE_PLATFORM: string | undefined;
   export const APPWRITE_DATABASE_ID: string;
   export const APPWRITE_USER_PROFILES_TABLE_ID: string;
   export const APPWRITE_CLIENTS_TABLE_ID: string;
@@ -11,5 +12,6 @@ declare module '@env' {
   export const APPWRITE_SETTINGS_TABLE_ID: string;
   export const APPWRITE_BUCKET_ID: string;
   export const APPWRITE_EVENTS_FUNCTION_ID: string;
+  export const DEEP_LINK_SCHEME: string | undefined;
 }
 
