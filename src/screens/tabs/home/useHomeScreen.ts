@@ -660,7 +660,8 @@ export const useHomeScreen = () => {
             const formattedDistance = distanceForRow(event);
             const clientId = typeof event.client === 'string' ? event.client : event.client?.$id;
             const clientObj = clientId ? clientsMap.get(clientId) : (typeof event.client === 'object' ? event.client : null);
-            const location = clientObj?.name || clientObj?.title || event.city || 'Location';
+            // Second listing line is the store/location name, not the brand or event title.
+            const location = (event.locationName || '').trim() || (event.city || '').trim();
             const brandName = clientObj?.name || clientObj?.title || 'Brand';
             const eventName = event.name || 'Event';
             return {
@@ -983,7 +984,9 @@ export const useHomeScreen = () => {
             id: event.$id,
             name: eventName,
             brandName: brandName,
-            location: clientObj?.name || clientObj?.title || event.city || 'Location',
+            // Unused by StoreEventCard today; keep the store-name pattern so a future
+            // second line here can't silently reintroduce the brand-as-location bug.
+            location: (event.locationName || '').trim() || (event.city || '').trim(),
             distance: formattedDistance,
             date: formattedDate,
             time: formattedTime,

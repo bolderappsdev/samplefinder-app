@@ -160,7 +160,8 @@ export const useFavoritesScreen = () => {
         .slice(0, 3) // Limit to 3 upcoming events
         .map((event): EventData => {
           const eventClient = typeof event.client !== 'string' ? event.client : null;
-          const location = eventClient?.name || eventClient?.title || event.address || 'Location TBD';
+          // Store/location name for the listing line; city/state is shown as a separate segment below.
+          const location = (event.locationName || '').trim() || 'Location TBD';
           
           // Get city and state from event
           const city = event.city || eventClient?.city || '';
