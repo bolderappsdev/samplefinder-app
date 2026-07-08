@@ -79,6 +79,12 @@ const withDeepLinkIntentFilter = (config) => {
  * Combined config plugin for deep linking (Universal Links + App Links).
  */
 const withDeepLinking = (config) => {
+  // Staging is custom-scheme only (see app.config.js `scheme`). Skip Associated
+  // Domains (iOS) and the autoVerify App Link (Android) so staging never competes
+  // with the prod app for samplefinder.com links.
+  if (process.env.APP_VARIANT === 'staging') {
+    return config;
+  }
   config = withAssociatedDomains(config);
   config = withDeepLinkIntentFilter(config);
   return config;

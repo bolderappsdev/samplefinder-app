@@ -31,17 +31,17 @@ Updated `src/screens/auth/PasswordResetScreen.tsx` to match the design with:
 
 ## How to Deploy
 
-### Option 1: Using Appwrite CLI (Recommended)
+> ⚠️ **Functions are owned by `samplefinder-admin/`, not this repo.** The canonical Function
+> source + Appwrite CLI config live in `samplefinder-admin/appwrite/functions/`. Do **not** run
+> `appwrite push` from inside `samplefinder-app/`: any `appwrite/` directory or `appwrite.config.json`
+> here is stray CLI output that may hold stale code or point at the wrong project. Deploy from the
+> admin repo.
+
+### Option 1: Appwrite CLI (from the admin repo)
 
 ```bash
-# Navigate to appwrite directory
-cd appwrite
-
-# Deploy the Mobile API function
-appwrite push functions --functionId 69308117000e7a96bcbb
-
-# Or deploy all functions
-appwrite push functions
+cd ../samplefinder-admin/appwrite
+appwrite push functions --functionId 69308117000e7a96bcbb   # Mobile API
 ```
 
 ### Option 2: Manual Deployment via Appwrite Console
@@ -51,7 +51,7 @@ appwrite push functions
 3. Go to **Functions** → **Mobile API**
 4. Click **Create Deployment**
 5. Select **Manual** deployment
-6. Upload the following files from `appwrite/functions/Mobile API/`:
+6. Upload the following files from `samplefinder-admin/appwrite/functions/Mobile API/`:
    - `src/main.js` (the compiled JavaScript)
    - `package.json`
 7. Click **Deploy**
@@ -100,7 +100,7 @@ If you still see "Invalid endpoint" errors after deployment:
 - **Function Name:** Mobile API
 - **Runtime:** node-22
 - **Entrypoint:** `src/main.js`
-- **Path:** `appwrite/functions/Mobile API`
+- **Path:** `samplefinder-admin/appwrite/functions/Mobile API`
 
 ## Need Help?
 
