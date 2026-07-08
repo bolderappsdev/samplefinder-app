@@ -40,12 +40,11 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, showDate = true }
     formattedDate = event.date;
   }
   
-  // Title should always prefer brand name
+  // Line 1 is always the brand name.
   const displayBrandName = event.brandName || 'Brand';
-  // Subtitle should show event name
-  const displayEventName = event.name?.trim() || 'Event';
 
-  // Location is often populated with the same client/store name as brandName; skip that duplicate line.
+  // Line 2 is the store/location name (populated from event.locationName upstream).
+  // Skip it when empty, or when it merely repeats the brand name.
   const locationTrimmed = (event.location || '').trim();
   const brandTrimmed = (event.brandName || '').trim();
   const showLocationLine =
@@ -91,20 +90,11 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, showDate = true }
             >
               {displayBrandName}
             </Text>
-            <Text
-              style={styles.eventName}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {displayEventName}
-            </Text>
             {showLocationLine ? (
               <Text
                 style={styles.locationText}
-                {...(locationTrimmed.split(/\s+/).length === 1 && {
-                  numberOfLines: 1,
-                  ellipsizeMode: 'tail' as const,
-                })}
+                numberOfLines={2}
+                ellipsizeMode="tail"
               >
                 {locationTrimmed}
               </Text>
@@ -158,11 +148,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     paddingRight: 8,
-  },
-  eventName: {
-    fontSize: 15,
-    fontFamily: 'Quicksand_600SemiBold',
-    color: Colors.brandBlueBright,
   },
   brandName: {
     fontSize: 17,

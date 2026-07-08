@@ -172,8 +172,8 @@ export const convertEventToCalendarEventDetail = (
 ): CalendarEventDetail => {
   const formattedTime = formatEventTime(event.startTime, event.endTime, event.timezone);
 
-  // Get location name from client, fallback to event address
-  const location = client?.name || client?.title || event.address || 'Location TBD';
+  // Second listing line is the store/location name, not the brand or event title.
+  const location = (event.locationName || '').trim() || (event.city || '').trim();
   
   // Calculate distance if user location is provided (location is now on event, not client)
   const distance = formatEventDistance({
@@ -228,7 +228,7 @@ export const convertEventToCalendarEventDetail = (
     date: getEventCalendarAnchorDate(event.startTime || event.date, event.timezone),
     name: event.name || 'Event',
     brandName: brandName,
-    location,             // Location is client/store name
+    location,             // Store/location name (event.locationName), falls back to city
     distance,
     time: formattedTime,
     timezone: event.timezone ?? null,

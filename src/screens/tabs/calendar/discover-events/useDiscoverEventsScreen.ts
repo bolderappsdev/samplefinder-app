@@ -143,8 +143,8 @@ export const useDiscoverEventsScreen = () => {
           const brandName = client?.name || client?.title || 'Brand';
           // Event name should come from event.name
           const eventName = event.name || 'Event';
-          // Location comes from client name or event address/city
-          const location = client?.name || client?.title || event.city || event.address || 'Location TBD';
+          // Second listing line is the store/location name, not the brand or event title.
+          const location = (event.locationName || '').trim() || (event.city || '').trim();
 
           // Use event.location for distance calculation (location moved from brand to event)
           const distance = formatEventDistance({
