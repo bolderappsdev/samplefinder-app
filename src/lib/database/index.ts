@@ -116,6 +116,10 @@ export type {
   GetActiveTriviaResponse,
 } from './trivia';
 
+// Re-export popup functions (SAM-5)
+export { getActivePopups, recordPopupClick } from './popups';
+export type { ActivePopup } from './popups';
+
 // Re-export user notifications functions
 export {
   createUserNotification,

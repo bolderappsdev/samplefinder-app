@@ -23,7 +23,17 @@ import { PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sa
 import AppNavigator from '@/navigation/AppNavigator';
 import { TriviaModal } from '@/components/trivia';
 import type { TriviaQuestion } from '@/lib/database/trivia';
-import { getActiveTrivia, submitTriviaAnswer, dismissTrivia, fetchTiers, getUserProfile } from '@/lib/database';
+import {
+  getActiveTrivia,
+  submitTriviaAnswer,
+  dismissTrivia,
+  fetchTiers,
+  getUserProfile,
+  getActivePopups,
+  recordPopupClick,
+  type ActivePopup,
+} from '@/lib/database';
+import { PopupImageModal } from '@/components/popup';
 import { setupTokenRefreshListener, initializePushNotifications } from '@/lib/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { createUserNotification } from '@/lib/database';
@@ -33,7 +43,7 @@ import { useTier1ModalStore } from '@/stores/tier1ModalStore';
 import { useTierCompletionStore } from '@/stores/tierCompletionStore';
 import { AchievementModal } from '@/screens/tabs/promotions/components';
 import type { Tier } from '@/screens/tabs/promotions/components';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Linking, Alert } from 'react-native';
 import { getUserCurrentTier } from '@/lib/database/tiers';
 import { isTriviaOfferedToday } from '@/lib/triviaSchedule';
 import './reactotron';
@@ -78,6 +88,32 @@ export default function App() {
     return questions.filter((q) => !processedTriviaIdsRef.current.has(q.$id));
   }, []);
 
+  /** Pop-up banner queue (SAM-5); shown one at a time, only while no trivia is pending. */
+  const [popupQueue, setPopupQueue] = useState<ActivePopup[]>([]);
+  /** True once the initial trivia check has resolved; gates pop-up display so a pending trivia (fetched in parallel) always wins the first render. */
+  const [triviaChecked, setTriviaChecked] = useState(false);
+  const popupQueueRef = useRef(popupQueue);
+  popupQueueRef.current = popupQueue;
+  const popupFetchInFlightRef = useRef(false);
+  const popupFetchedOnceRef = useRef(false);
+  const popupPressInFlightRef = useRef(false);
+  const currentPopup = popupQueue[0] ?? null;
+
+  const mergePopupsIntoQueue = useCallback((incoming: ActivePopup[]) => {
+    if (incoming.length === 0) return;
+    setPopupQueue((prev) => {
+      const seen = new Set(prev.map((p) => p.$id));
+      const merged = [...prev];
+      for (const p of incoming) {
+        if (!seen.has(p.$id)) {
+          merged.push(p);
+          seen.add(p.$id);
+        }
+      }
+      return merged;
+    });
+  }, []);
+
   const shouldShowTier1Modal = useTier1ModalStore((s) => s.shouldShowTier1Modal);
   const setShouldShowTier1Modal = useTier1ModalStore((s) => s.setShouldShowTier1Modal);
   const [tier1ModalVisible, setTier1ModalVisible] = useState(false);
@@ -105,6 +141,9 @@ export default function App() {
     triviaShownRef.current = false;
     prevQueueLengthRef.current = 0;
     processedTriviaIdsRef.current.clear();
+    setPopupQueue([]);
+    popupFetchedOnceRef.current = false;
+    setTriviaChecked(false);
   }, [authUser]);
 
   // Saved calendar events must come from the user's Appwrite profile, not from
@@ -222,6 +261,8 @@ export default function App() {
         }
       } catch (error) {
         if (!cancelled) console.error('[App] Failed to fetch trivia:', error);
+      } finally {
+        if (!cancelled) setTriviaChecked(true);
       }
     }, 5000);
 
@@ -229,7 +270,13 @@ export default function App() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [appIsReady]);
+    // Re-run on login, not just app-ready: the pop-up display is gated on
+    // `triviaChecked`, which this effect flips once the trivia check resolves.
+    // A user who signs in from the Login screen after the initial ~5s window
+    // (or logs out and back in) must still get that check — otherwise the
+    // pop-up would be blocked. Keyed on `$id` so a same-user token refresh
+    // (new object, same id) doesn't re-fire.
+  }, [appIsReady, authUser?.$id]);
 
   // Hide trivia modal when queue is exhausted (user closed last question)
   useEffect(() => {
@@ -357,6 +404,73 @@ export default function App() {
     }, 1000);
     return () => clearInterval(id);
   }, [appIsReady]);
+
+  // Fetch pop-up banners early (3s after app is ready) so the data is ready by
+  // the time Home wants to show one — but DISPLAY is gated separately (see the
+  // render gate below) on `triviaChecked`, which the initial trivia-fetch effect
+  // flips once its ~5s check resolves. That keeps a pending trivia winning first
+  // (no trivia→popup flicker) while still surfacing pop-ups at trivia's cadence
+  // instead of ~8s later on whatever screen the user has navigated to. Server-side
+  // day-dedup makes repeat calls idempotent.
+  useEffect(() => {
+    if (!appIsReady || popupFetchedOnceRef.current) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled || popupFetchInFlightRef.current) return;
+      popupFetchInFlightRef.current = true;
+      try {
+        const user = useAuthStore.getState().user;
+        if (cancelled || !user) return;
+        const profile = await getUserProfile(user.$id);
+        if (cancelled || !profile) return;
+        const popups = await getActivePopups(profile.$id);
+        if (cancelled) return;
+        popupFetchedOnceRef.current = true;
+        mergePopupsIntoQueue(popups);
+      } catch (error) {
+        if (!cancelled) console.error('[App] Failed to fetch popups:', error);
+      } finally {
+        popupFetchInFlightRef.current = false;
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // Depend on the user id (not the authUser object) so a genuine login/switch
+    // re-arms the initial fetch — popupFetchedOnceRef is reset on auth change —
+    // without re-arming on every fetchUser() call that returns a fresh object
+    // reference for the same account (which would keep resetting the 3s timer).
+  }, [appIsReady, authUser?.$id, mergePopupsIntoQueue]);
+
+  // Refetch pop-ups on foreground (e.g. a new campaign day started while backgrounded).
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextState: AppStateStatus) => {
+      if (nextState !== 'active' || popupFetchInFlightRef.current) return;
+      popupFetchInFlightRef.current = true;
+      try {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        const startUserId = user.$id;
+        const profile = await getUserProfile(user.$id);
+        if (!profile) return;
+        const popups = await getActivePopups(profile.$id);
+        // If the account changed while this fetch was in flight, drop the result —
+        // popups are audience-targeted and 21+-gated per user, so a response fetched
+        // for the previous account must never leak into the new account's queue.
+        if (useAuthStore.getState().user?.$id !== startUserId) return;
+        mergePopupsIntoQueue(popups);
+      } catch (error) {
+        console.error('[App] Failed to refetch popups on foreground:', error);
+      } finally {
+        popupFetchInFlightRef.current = false;
+      }
+    });
+
+    return () => subscription.remove();
+  }, [mergePopupsIntoQueue]);
 
   // Show Tier 1 modal for newly signed up users (after email verification)
   useEffect(() => {
@@ -552,6 +666,54 @@ export default function App() {
     }
   };
 
+  const handlePopupClose = () => {
+    const shownId = currentPopup?.$id;
+    if (!shownId) return;
+    setPopupQueue((prev) => (prev[0]?.$id === shownId ? prev.slice(1) : prev));
+  };
+
+  const handlePopupPress = async () => {
+    // Guard against a rapid double-tap re-firing the click record / link open
+    // during the async canOpenURL/openURL window before the modal unmounts.
+    if (popupPressInFlightRef.current) return;
+    popupPressInFlightRef.current = true;
+    try {
+      const popup = popupQueueRef.current[0];
+      if (!popup) return;
+      if (!popup.link) {
+        handlePopupClose();
+        return;
+      }
+      const profileId = await resolveUserProfileIdForTrivia();
+      if (profileId) {
+        void recordPopupClick(profileId, popup.$id);
+      }
+      let opened = false;
+      try {
+        if (await Linking.canOpenURL(popup.link)) {
+          await Linking.openURL(popup.link);
+          opened = true;
+        } else {
+          console.warn('[App] Cannot open popup link:', popup.link);
+        }
+      } catch (error) {
+        console.warn('[App] Failed to open popup link:', error);
+      }
+      if (opened) {
+        handlePopupClose();
+      } else {
+        // Close only after the user dismisses the alert. Closing synchronously here
+        // races the alert's native presentation — the modal unmounts mid-present and
+        // can swallow the alert, which is the exact "silent link failure" this guards.
+        Alert.alert('Unable to Open Link', 'This link could not be opened. Please try again later.', [
+          { text: 'OK', onPress: handlePopupClose },
+        ]);
+      }
+    } finally {
+      popupPressInFlightRef.current = false;
+    }
+  };
+
   const triviaDayActive = isTriviaOfferedToday();
 
   return (
@@ -574,6 +736,16 @@ export default function App() {
                 if (!profileId) return;
                 return dismissTrivia(profileId, q.$id);
               }}
+            />
+          )}
+          {authUser && currentPopup && triviaChecked && (!triviaDayActive || !currentQuestion) &&
+            !tier1ModalVisible && !shouldShowTierModal && (
+            <PopupImageModal
+              key={currentPopup.$id}
+              visible={true}
+              popup={currentPopup}
+              onClose={handlePopupClose}
+              onPress={handlePopupPress}
             />
           )}
           <AchievementModal
