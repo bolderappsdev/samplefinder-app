@@ -6,6 +6,7 @@ import { NotificationSetting, Notification } from './components';
 import { useAuthStore } from '@/stores/authStore';
 import { updateNotificationPreferences } from '@/lib/database/users';
 import { getUserNotifications, markNotificationsAsRead } from '@/lib/database';
+import { navigateToEventDetails } from '@/lib/notifications/handlers';
 
 export const useNotificationsScreen = () => {
   const navigation = useNavigation();
@@ -28,11 +29,18 @@ export const useNotificationsScreen = () => {
   const isFlushingReadIdsRef = useRef(false);
 
   const mapNotificationToItem = useCallback(
-    (notif: { id: string; title: string; message: string; isRead: boolean }): Notification => ({
+    (notif: {
+      id: string;
+      title: string;
+      message: string;
+      isRead: boolean;
+      data?: Record<string, any>;
+    }): Notification => ({
       id: notif.id,
       title: notif.title,
       description: notif.message,
       isRead: notif.isRead,
+      eventId: typeof notif.data?.eventId === 'string' ? notif.data.eventId : undefined,
     }),
     []
   );
@@ -257,6 +265,12 @@ export const useNotificationsScreen = () => {
   };
 
   const handleNotificationPress = (notificationId: string) => {
+    // Look up the tapped notification in either list (it may already be read) so we
+    // know whether it's about an event before we optimistically mutate the lists.
+    const tapped =
+      notifications.find((n) => n.id === notificationId) ??
+      previousNotifications.find((n) => n.id === notificationId);
+
     // Optimistically move notification to "Previously Seen" for snappy UI
     setNotifications((currentNotifications) => {
       const tappedNotification = currentNotifications.find((n) => n.id === notificationId);
@@ -273,6 +287,11 @@ export const useNotificationsScreen = () => {
 
     pendingReadIdsRef.current.add(notificationId);
     void flushPendingReadNotifications();
+
+    // If this notification is about an event, open its details screen.
+    if (tapped?.eventId) {
+      navigateToEventDetails(tapped.eventId);
+    }
   };
 
   const handleRefresh = useCallback(() => {
