@@ -14,6 +14,8 @@ export interface Notification {
   icon?: string;
   timestamp?: Date;
   isRead?: boolean;
+  /** Present when the notification is about an event; tapping opens its details. */
+  eventId?: string;
 }
 
 interface NotificationItemProps {

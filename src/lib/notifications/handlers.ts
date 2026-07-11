@@ -97,6 +97,47 @@ const markNotificationPersisted = (notificationId: string) => {
 };
 
 /**
+ * Keys the OS / FCM inject into a remote notification's raw payload that are
+ * not part of our application data.
+ */
+const isReservedPushPayloadKey = (key: string): boolean =>
+  key === 'aps' || key.startsWith('gcm.') || key.startsWith('google.');
+
+/**
+ * Resolve a push notification's application data (eventId, type, screen, …).
+ *
+ * Android (and Expo-formatted pushes) populate `content.data`, so we use it
+ * directly. iOS FCM pushes do NOT: for a REMOTE notification expo-notifications
+ * only maps `userInfo["body"]` into `content.data`, but our server sends the
+ * data flat (no `body` wrapper), so `content.data` comes back empty. The full
+ * raw APNs `userInfo` — which still carries `eventId` etc. at the top level —
+ * is exposed on the push trigger's `payload`, so we fall back to it (minus the
+ * reserved APNs/FCM bookkeeping keys). Local notifications and Android are
+ * unaffected because their `content.data` is already populated.
+ */
+const resolveNotificationData = (
+  notification: Notifications.Notification
+): NotificationData => {
+  const contentData = (notification.request.content.data ?? {}) as NotificationData;
+  if (Object.keys(contentData).length > 0) {
+    return contentData;
+  }
+
+  const rawPayload = (notification.request.trigger as any)?.payload;
+  if (rawPayload && typeof rawPayload === 'object') {
+    const appData: NotificationData = {};
+    for (const [key, value] of Object.entries(rawPayload as Record<string, unknown>)) {
+      if (!isReservedPushPayloadKey(key)) {
+        appData[key] = value;
+      }
+    }
+    return appData;
+  }
+
+  return contentData;
+};
+
+/**
  * Add any push notification to the user's in-app notifications list.
  * Deduplicates by notification request identifier to avoid saving the same push twice
  * when both "received" and "response" listeners fire.
@@ -125,7 +166,9 @@ const addPushToInAppNotifications = async (
     const user = useAuthStore.getState().user;
     if (!user) return;
 
-    const data = (notification.request.content.data || {}) as NotificationData & {
+    // Prefer content.data; fall back to the raw push payload on iOS (see
+    // resolveNotificationData) so eventId/type survive into the stored record.
+    const data = resolveNotificationData(notification) as NotificationData & {
       type?: string;
       eventId?: string;
       reminderType?: string;
@@ -200,17 +243,46 @@ export const getNavigationRef = (): NavigationContainerRef<any> | null => {
 };
 
 /**
+ * Navigate to an event's details screen from anywhere, including outside React
+ * (push notification handlers, the in-app notification list). The event details
+ * screen is registered as "BrandDetails" inside HomeStack, so we route through
+ * MainTabs → Home → BrandDetails (the same nav-ref pattern used elsewhere, e.g.
+ * FavoriteBrandItem). Returns false if the navigator isn't ready yet.
+ */
+export const navigateToEventDetails = (eventId: string): boolean => {
+  if (!navigationRef) {
+    console.warn('[notifications] No navigation ref available to open event details');
+    return false;
+  }
+
+  (navigationRef as any).navigate('MainTabs', {
+    screen: 'Home',
+    params: {
+      screen: 'BrandDetails',
+      params: { eventId },
+    },
+  });
+  return true;
+};
+
+/**
  * Handle notification tap and navigate to appropriate screen
  */
-const handleNotificationTap = (notification: Notifications.Notification) => {
+const handleNotificationTap = (notification: Notifications.Notification): boolean => {
   console.log('[notifications] Notification tapped:', notification);
   
-  const data = notification.request.content.data as NotificationData;
+  const data = resolveNotificationData(notification);
   const title = notification.request.content.title || '';
-  
-  if (!navigationRef || !data) {
-    console.warn('[notifications] No navigation ref or data available');
-    return;
+
+  if (!data || Object.keys(data).length === 0) {
+    console.warn('[notifications] No notification data available');
+    return true; // nothing to act on — treat as handled
+  }
+  if (!navigationRef) {
+    // Navigator not mounted yet (possible on a slow cold start). Report "not handled"
+    // so the caller leaves the stored response in place and retries on the next launch.
+    console.warn('[notifications] Navigation not ready; deferring notification tap');
+    return false;
   }
   
   // For special badge notifications (ambassador/influencer), don't navigate immediately
@@ -221,19 +293,24 @@ const handleNotificationTap = (notification: Notifications.Notification) => {
   
   if (isSpecialBadgeNotification) {
     console.log('[notifications] Special badge notification - skipping navigation to let popup show');
-    return;
+    return true; // handled: intentionally no navigation (badge modal shows instead)
   }
   
   try {
-    // Navigate based on notification type
+    // Event notifications carry an eventId (server-sent reminders, "sampling today",
+    // "nearby event", and the client "added to calendar" push). Open the event directly.
+    // We key off eventId rather than `data.screen` because server-sent event pushes
+    // historically omit `screen`, which previously made tapping them do nothing.
+    if (data.eventId) {
+      console.log('[notifications] Opening event details from tap, eventId:', data.eventId);
+      return navigateToEventDetails(data.eventId);
+    }
+
+    // Non-event notifications route by their `screen` field.
     if (data.screen) {
       const screenName = data.screen;
       const params: any = {};
       
-      // Add relevant params based on notification type
-      if (data.eventId) {
-        params.eventId = data.eventId;
-      }
       if (data.clientId) {
         params.clientId = data.clientId;
       }
@@ -251,25 +328,8 @@ const handleNotificationTap = (notification: Notifications.Notification) => {
       // Use type assertion to handle nested navigation
       const nav = navigationRef as any;
       
-      if (screenName === 'EventDetails' && params.eventId) {
-        // Note: EventDetails is actually BrandDetails in HomeStack
-        nav.navigate('MainTabs', {
-          screen: 'Home',
-          params: {
-            screen: 'BrandDetails',
-            params: { eventId: params.eventId },
-          },
-        });
-      } else if (screenName === 'BrandDetails' && params.eventId) {
-        // Handle event reminder notifications (with eventId)
-        nav.navigate('MainTabs', {
-          screen: 'Home',
-          params: {
-            screen: 'BrandDetails',
-            params: { eventId: params.eventId },
-          },
-        });
-      } else if (screenName === 'BrandDetails' && params.clientId) {
+      if (screenName === 'BrandDetails' && params.clientId) {
+        // Legacy path: some pushes reference the event by clientId instead of eventId
         nav.navigate('MainTabs', {
           screen: 'Home',
           params: {
@@ -293,8 +353,24 @@ const handleNotificationTap = (notification: Notifications.Notification) => {
         nav.navigate(screenName, params);
       }
     }
+    return true; // handled (routed by screen, or no actionable route present)
   } catch (error: any) {
     console.error('[notifications] Error navigating from notification:', error);
+    return true; // consumed — avoid retrying a hard failure on every launch
+  }
+};
+
+/**
+ * Clear the OS-stored "last notification response" once we've handled it. Without
+ * this, expo-notifications keeps returning the same response on every subsequent
+ * cold start, which would re-open the last event's details every time the app is
+ * launched from quit. Safe no-op if the native module doesn't support clearing.
+ */
+const clearLastNotificationResponseSafely = () => {
+  try {
+    Notifications.clearLastNotificationResponse();
+  } catch (err) {
+    console.warn('[notifications] Failed to clear last notification response:', err);
   }
 };
 
@@ -316,7 +392,11 @@ export const setupNotificationHandlers = (): (() => void) => {
   const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
     console.log('[notifications] Notification response received:', response.notification.request.identifier);
     addPushToInAppNotifications(response.notification, 'response');
-    handleNotificationTap(response.notification);
+    const handled = handleNotificationTap(response.notification);
+    if (handled) {
+      // Consume the response so it isn't replayed on the next cold start.
+      clearLastNotificationResponseSafely();
+    }
   });
 
   console.log('[notifications] Notification handlers set up');
@@ -337,9 +417,14 @@ export const getLastNotificationResponse = async (): Promise<Notifications.Notif
     if (response) {
       console.log('[notifications] Last notification response found:', response.notification.request.identifier);
       addPushToInAppNotifications(response.notification, 'cold_start');
-      // Handle the notification after a short delay to ensure navigation is ready
+      // Handle the notification after a short delay to give the navigator time to mount.
+      // Only clear the stored response once it was actually handled; if navigation wasn't
+      // ready yet, leave it in place so the next launch retries instead of dropping it.
       setTimeout(() => {
-        handleNotificationTap(response.notification);
+        const handled = handleNotificationTap(response.notification);
+        if (handled) {
+          clearLastNotificationResponseSafely();
+        }
       }, 1000);
     }
     return response;
