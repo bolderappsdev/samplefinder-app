@@ -66,7 +66,7 @@ export type CheckInStatus = 'none' | 'input' | 'incorrect' | 'success';
 
 interface BrandDetailsScreenProps {
   route: {
-    params: { eventId?: string; brand?: BrandDetailsData; fromFavorites?: boolean };
+    params: { eventId?: string; brand?: BrandDetailsData; fromFavorites?: boolean; fromNotifications?: boolean };
   };
   contentRef?: RefObject<View | null>;
   shareContentRef?: RefObject<View | null>;
@@ -74,7 +74,7 @@ interface BrandDetailsScreenProps {
 
 export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: BrandDetailsScreenProps) => {
   const navigation = useNavigation<BrandDetailsScreenNavigationProp>();
-  const { eventId, brand: brandParam, fromFavorites } = route.params;
+  const { eventId, brand: brandParam, fromFavorites, fromNotifications } = route.params;
   
   // State for brand data and loading
   const [brand, setBrand] = useState<BrandDetailsData | null>(brandParam || null);
@@ -301,6 +301,77 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
     }
   }, [navigation]);
 
+  // Notification taps open this screen via MainTabs → Home → BrandDetails (see
+  // navigateToEventDetails), so a plain goBack() would strand the user on the Home
+  // screen. Mirror navigateBackToFavorites: reset the root state so we pop the pushed
+  // BrandDetails off the Home stack and land on the Profile tab's Notifications screen
+  // (with ProfileMain beneath it, so a further back press follows the normal hierarchy).
+  const navigateBackToNotifications = useCallback(() => {
+    const rootNav = getNavigationRef();
+    const rootState = rootNav?.getRootState();
+    if (rootNav?.isReady() && rootState?.routes?.length) {
+      const mainTabsRoute = rootState.routes.find((r: { name: string }) => r.name === 'MainTabs');
+      const tabsState = mainTabsRoute?.state;
+      if (tabsState?.routes?.length) {
+        const existingTabRoutes = tabsState.routes as Array<{
+          name: string;
+          key?: string;
+          state?: { index?: number; routes?: Array<{ name: string; key?: string }> };
+        }>;
+        const profileTabIndex = existingTabRoutes.findIndex((tabRoute) => tabRoute.name === 'Profile');
+        if (profileTabIndex >= 0) {
+          const updatedTabRoutes = existingTabRoutes.map((tabRoute) => {
+            if (tabRoute.name === 'Home') {
+              // Drop the BrandDetails we pushed, but keep the existing HomeMain route (and its
+              // key) so the map screen underneath isn't torn down and remounted.
+              const homeMain =
+                tabRoute.state?.routes?.find((r) => r.name === 'HomeMain') ?? { name: 'HomeMain' };
+              return { ...tabRoute, state: { index: 0, routes: [homeMain] } };
+            }
+            if (tabRoute.name === 'Profile') {
+              const profileRoutes = tabRoute.state?.routes ?? [];
+              const topRoute = profileRoutes[profileRoutes.length - 1];
+              // In-app list tap: the user is already on Notifications, so keep the stack exactly
+              // as-is. Preserving keys means the list isn't remounted (no scroll jump, no extra
+              // refetch, and the optimistic "mark as read" state survives the round trip).
+              if (topRoute?.name === 'Notifications') {
+                return tabRoute;
+              }
+              // Push notification (incl. cold start, where Profile was never opened): build the
+              // stack so Notifications shows with ProfileMain beneath it for a natural second back.
+              const profileMain =
+                profileRoutes.find((r) => r.name === 'ProfileMain') ?? { name: 'ProfileMain' };
+              return { ...tabRoute, state: { index: 1, routes: [profileMain, { name: 'Notifications' }] } };
+            }
+            return tabRoute;
+          });
+          const resetState = {
+            index: 0,
+            routes: [
+              {
+                ...mainTabsRoute,
+                state: {
+                  ...tabsState,
+                  index: profileTabIndex, // Profile tab
+                  routes: updatedTabRoutes,
+                },
+              },
+            ],
+          };
+          rootNav.dispatch(CommonActions.reset(resetState as Parameters<typeof CommonActions.reset>[0]));
+          return;
+        }
+      }
+    }
+    // Fallback: bubble a plain navigate to Profile → Notifications.
+    const parent = navigation.getParent();
+    if (parent) {
+      (parent as any).navigate('MainTabs', { screen: 'Profile', params: { screen: 'Notifications' } });
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation]);
+
   // When fromFavorites is true, intercept back gesture (swipe) so we go to Favorites tab instead of Home stack
   useEffect(() => {
     if (!fromFavorites) return;
@@ -315,9 +386,26 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
     return unsubscribe;
   }, [navigation, fromFavorites, navigateBackToFavorites]);
 
+  // Same interception for notification-opened details: swipe / hardware back should
+  // return to Notifications, not the Home stack we were routed through.
+  useEffect(() => {
+    if (!fromNotifications) return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      const action = e.data.action;
+      const isBackGesture = action.type === 'POP' || action.type === 'GO_BACK';
+      if (isBackGesture) {
+        e.preventDefault();
+        navigateBackToNotifications();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, fromNotifications, navigateBackToNotifications]);
+
   const handleBack = () => {
     if (fromFavorites) {
       navigateBackToFavorites();
+    } else if (fromNotifications) {
+      navigateBackToNotifications();
     } else {
       navigation.goBack();
     }
