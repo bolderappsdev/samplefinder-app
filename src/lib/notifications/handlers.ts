@@ -248,6 +248,11 @@ export const getNavigationRef = (): NavigationContainerRef<any> | null => {
  * screen is registered as "BrandDetails" inside HomeStack, so we route through
  * MainTabs → Home → BrandDetails (the same nav-ref pattern used elsewhere, e.g.
  * FavoriteBrandItem). Returns false if the navigator isn't ready yet.
+ *
+ * `fromNotifications: true` tells BrandDetails to send the back button (header
+ * arrow, swipe, and Android hardware back) to the in-app Notifications screen
+ * instead of the Home stack we route through — otherwise back would strand the
+ * user on the Home screen (see navigateBackToNotifications in useBrandDetailsScreen).
  */
 export const navigateToEventDetails = (eventId: string): boolean => {
   if (!navigationRef) {
@@ -259,7 +264,7 @@ export const navigateToEventDetails = (eventId: string): boolean => {
     screen: 'Home',
     params: {
       screen: 'BrandDetails',
-      params: { eventId },
+      params: { eventId, fromNotifications: true },
     },
   });
   return true;

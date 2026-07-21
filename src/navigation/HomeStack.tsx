@@ -6,8 +6,8 @@ import { BrandDetailsScreen, BrandDetailsData } from '@/screens/brand-details';
 export type HomeStackParamList = {
   HomeMain: undefined;
   BrandDetails:
-    | { eventId: string; fromFavorites?: boolean }
-    | { brand: BrandDetailsData; fromFavorites?: boolean };
+    | { eventId: string; fromFavorites?: boolean; fromNotifications?: boolean }
+    | { brand: BrandDetailsData; fromFavorites?: boolean; fromNotifications?: boolean };
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();

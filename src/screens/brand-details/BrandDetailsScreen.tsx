@@ -31,7 +31,7 @@ export type { BrandDetailsData };
 
 interface BrandDetailsScreenProps {
   route: {
-    params: { eventId?: string; brand?: BrandDetailsData; fromFavorites?: boolean };
+    params: { eventId?: string; brand?: BrandDetailsData; fromFavorites?: boolean; fromNotifications?: boolean };
   };
 }
 
