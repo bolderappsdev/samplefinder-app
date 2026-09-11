@@ -253,18 +253,28 @@ export const getNavigationRef = (): NavigationContainerRef<any> | null => {
  * arrow, swipe, and Android hardware back) to the in-app Notifications screen
  * instead of the Home stack we route through — otherwise back would strand the
  * user on the Home screen (see navigateBackToNotifications in useBrandDetailsScreen).
+ *
+ * Callers that did NOT come from a notification must pass
+ * `fromNotifications: false` — a pop-up banner, for example. Claiming a
+ * notification origin would send back to a Notifications screen the user never
+ * visited; for those, falling back to the Home stack is the correct destination.
  */
-export const navigateToEventDetails = (eventId: string): boolean => {
+export const navigateToEventDetails = (
+  eventId: string,
+  options: { fromNotifications?: boolean } = {}
+): boolean => {
   if (!navigationRef) {
     console.warn('[notifications] No navigation ref available to open event details');
     return false;
   }
 
+  const { fromNotifications = true } = options;
+
   (navigationRef as any).navigate('MainTabs', {
     screen: 'Home',
     params: {
       screen: 'BrandDetails',
-      params: { eventId, fromNotifications: true },
+      params: { eventId, fromNotifications },
     },
   });
   return true;

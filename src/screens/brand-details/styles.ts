@@ -47,6 +47,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.7,
   },
+  errorButton: {
+    marginTop: 24,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: Colors.blueColorMode,
+  },
+  errorButtonText: {
+    fontSize: 15,
+    fontFamily: 'Quicksand_600SemiBold',
+    color: Colors.white,
+  },
 });
 
 export default styles;
