@@ -9,7 +9,7 @@ import { APP_STORE_SHARE_SUFFIX } from '@/constants';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useAuthStore } from '@/stores/authStore';
 import {
-  fetchEventById,
+  lookupEventById,
   fetchClients,
   EventRow,
   ClientData,
@@ -83,6 +83,14 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [detailsRefreshTrigger, setDetailsRefreshTrigger] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Set when the event exists as a link but the app will not show it — archived, hidden, or
+   * deleted. Kept apart from `error` because it is a permanent outcome, not a failed request,
+   * so the screen must not offer a retry for it.
+   */
+  const [unavailableReason, setUnavailableReason] = useState<'missing' | 'unavailable' | null>(
+    null
+  );
   const isPullToRefreshRef = useRef(false);
   const [checkInCode, setCheckInCode] = useState<string>('');
   
@@ -166,15 +174,20 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
           setIsLoading(true);
         }
         setError(null);
+        setUnavailableReason(null);
 
-        const event = await fetchEventById(eventId);
-        if (!event) {
-          setError('Event not found');
+        const lookup = await lookupEventById(eventId);
+        if (lookup.status !== 'ok') {
+          // Reached by a stale link — a pop-up banner or push whose event was archived or
+          // removed after it was sent. Not an error state; the screen says so and offers a
+          // way back instead of a retry.
+          setUnavailableReason(lookup.status);
           setIsLoading(false);
           setIsRefreshing(false);
           isPullToRefreshRef.current = false;
           return;
         }
+        const event = lookup.event;
         
         let client = extractClientFromEvent(event);
         
@@ -793,6 +806,7 @@ export const useBrandDetailsScreen = ({ route, contentRef, shareContentRef }: Br
     brand,
     isLoading,
     error,
+    unavailableReason,
     checkInStatus,
     brandLogoUrl,
     isFavorite,

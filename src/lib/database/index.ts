@@ -54,10 +54,12 @@ export {
   fetchAllEvents,
   fetchAllUpcomingEvents,
   fetchEventById,
+  lookupEventById,
   fetchEventByIdForHistory,
   fetchEventsByLocation,
   fetchEventsForLocationId,
 } from './events';
+export type { EventLookup } from './events';
 
 // Re-export category functions
 export {
@@ -115,6 +117,10 @@ export type {
   SubmitAnswerResult,
   GetActiveTriviaResponse,
 } from './trivia';
+
+// Re-export popup functions (SAM-5)
+export { getActivePopups, recordPopupView, recordPopupClick } from './popups';
+export type { ActivePopup } from './popups';
 
 // Re-export user notifications functions
 export {

@@ -4,6 +4,7 @@ import {
   View,
   ActivityIndicator,
   Text,
+  TouchableOpacity,
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
@@ -43,6 +44,7 @@ const BrandDetailsScreen: React.FC<BrandDetailsScreenProps> = ({ route }) => {
     brand,
     isLoading,
     error,
+    unavailableReason,
     checkInStatus,
     brandLogoUrl,
     isFavorite,
@@ -103,6 +105,44 @@ const BrandDetailsScreen: React.FC<BrandDetailsScreenProps> = ({ route }) => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2D1B69" />
           <Text style={styles.loadingText}>Loading event details...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  /*
+    Event taken down, not a failure.
+    Reached by a link that outlived its event: a pop-up banner or a push notification whose
+    event was archived, hidden or deleted afterwards. This used to fall into the error branch
+    below and read "Event not found / Please try again later" — a retry prompt for something
+    no retry can fix, which looked like the app had broken. Say what happened and offer the
+    one action that helps.
+  */
+  if (unavailableReason) {
+    const isMissing = unavailableReason === 'missing';
+    // handleBack returns to Favorites or Notifications when the user came from there;
+    // otherwise it pops to the Home stack, which is the event list.
+    const backToList = !route.params.fromFavorites && !route.params.fromNotifications;
+    return (
+      <View ref={contentRef} style={styles.container} collapsable={false}>
+        <StatusBar style="light" />
+        <BackShareHeader onBack={handleBack} onShare={handleShareWithShareMode} />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>This event is no longer available</Text>
+          <Text style={styles.errorSubtext}>
+            {isMissing
+              ? 'It looks like this event has been removed. Have a look at what else is on.'
+              : "It has finished or been taken down, so there's nothing to show here anymore."}
+          </Text>
+          <TouchableOpacity
+            style={styles.errorButton}
+            onPress={handleBack}
+            accessibilityRole="button"
+          >
+            <Text style={styles.errorButtonText}>
+              {backToList ? 'Browse Events' : 'Go Back'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     );

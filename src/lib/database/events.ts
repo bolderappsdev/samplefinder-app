@@ -391,15 +391,33 @@ export const fetchAllUpcomingEvents = async (): Promise<EventRow[]> => {
 };
 
 /**
- * Fetch a single event by ID with client relationship
+ * Why a lookup produced no event. The distinction matters to the UI: 'unavailable' is a
+ * decision the app made on purpose and will never change on retry, while a thrown error is
+ * a genuine failure worth offering a retry for.
  */
-export const fetchEventById = async (eventId: string): Promise<EventRow | null> => {
-  console.log('[database.fetchEventById] Fetching event:', eventId);
+export type EventLookup =
+  | { status: 'ok'; event: EventRow }
+  /** No such row — deleted, or an ID that never existed. */
+  | { status: 'missing' }
+  /** The row exists but is archived or hidden, so the app deliberately does not show it. */
+  | { status: 'unavailable' };
+
+/**
+ * Fetch a single event by ID with client relationship, reporting *why* nothing came back.
+ *
+ * `fetchEventById` below collapses all three outcomes into null, which left callers unable to
+ * tell "this event was taken down" from "the request failed" — a pop-up banner pointing at an
+ * archived event showed a "try again later" screen for something no retry can fix.
+ *
+ * Throws only for real failures: missing config, or a network/permission error.
+ */
+export const lookupEventById = async (eventId: string): Promise<EventLookup> => {
+  console.log('[database.lookupEventById] Fetching event:', eventId);
 
   // Validate environment variables
   if (!DATABASE_ID || !EVENTS_TABLE_ID) {
     const errorMsg = 'Database ID or Events Table ID not configured. Please check your .env file.';
-    console.error('[database.fetchEventById]', errorMsg);
+    console.error('[database.lookupEventById]', errorMsg);
     throw new Error(errorMsg);
   }
 
@@ -411,8 +429,8 @@ export const fetchEventById = async (eventId: string): Promise<EventRow | null> 
     });
 
     if (!result) {
-      console.log('[database.fetchEventById] Event not found:', eventId);
-      return null;
+      console.log('[database.lookupEventById] Event not found:', eventId);
+      return { status: 'missing' };
     }
 
     // Check if event is archived or hidden
@@ -420,14 +438,14 @@ export const fetchEventById = async (eventId: string): Promise<EventRow | null> 
     const isHidden = result.isHidden === true || result.isHidden === 'true';
 
     if (isArchived || isHidden) {
-      console.log('[database.fetchEventById] Event is archived or hidden:', eventId);
-      return null;
+      console.log('[database.lookupEventById] Event is archived or hidden:', eventId);
+      return { status: 'unavailable' };
     }
 
     // Fetch full client data if client is just an ID string
     let clientData = result.client;
     if (typeof result.client === 'string') {
-      console.log('[database.fetchEventById] Client is ID string, fetching full client data:', result.client);
+      console.log('[database.lookupEventById] Client is ID string, fetching full client data:', result.client);
       const { fetchClientById } = await import('./clients');
       clientData = await fetchClientById(result.client);
     }
@@ -472,15 +490,32 @@ export const fetchEventById = async (eventId: string): Promise<EventRow | null> 
       $updatedAt: result.$updatedAt,
     };
 
-    console.log('[database.fetchEventById] Event fetched successfully:', event.$id);
-    console.log('[database.fetchEventById] Client data:', JSON.stringify(clientData, null, 2));
-    return event;
+    console.log('[database.lookupEventById] Event fetched successfully:', event.$id);
+    console.log('[database.lookupEventById] Client data:', JSON.stringify(clientData, null, 2));
+    return { status: 'ok', event };
   } catch (error: any) {
-    console.error('[database.fetchEventById] Error fetching event:', error);
-    console.error('[database.fetchEventById] Error message:', error?.message);
-    console.error('[database.fetchEventById] Error code:', error?.code);
+    // A deleted event is a 404 from getRow, not a falsy result. Treated as an outcome rather
+    // than an error, so callers do not surface Appwrite's raw "Document with the requested ID
+    // could not be found" to a user who simply tapped a stale link.
+    if (error?.code === 404) {
+      console.log('[database.lookupEventById] Event no longer exists:', eventId);
+      return { status: 'missing' };
+    }
+    console.error('[database.lookupEventById] Error fetching event:', error);
+    console.error('[database.lookupEventById] Error message:', error?.message);
+    console.error('[database.lookupEventById] Error code:', error?.code);
     throw new Error(error.message || 'Failed to fetch event');
   }
+};
+
+/**
+ * Fetch a single event by ID, or null if it is missing or not shown in the app.
+ * Kept for callers that only need "usable event or nothing" — see `lookupEventById`
+ * when the reason matters.
+ */
+export const fetchEventById = async (eventId: string): Promise<EventRow | null> => {
+  const result = await lookupEventById(eventId);
+  return result.status === 'ok' ? result.event : null;
 };
 
 /**

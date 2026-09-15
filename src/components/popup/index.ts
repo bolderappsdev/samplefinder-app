@@ -1,0 +1,1 @@
+export { PopupImageModal } from './PopupImageModal';
