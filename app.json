@@ -13,7 +13,7 @@
       "backgroundColor": "#1a1a2e"
     },
     "ios": {
-      "buildNumber": "86",
+      "buildNumber": "87",
       "supportsTablet": false,
       "bundleIdentifier": "com.samplefinder.app",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -38,7 +38,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "versionCode": 86,
+      "versionCode": 87,
       "package": "com.samplefinder.app",
       "googleServicesFile": "./google-services.json",
       "permissions": [
